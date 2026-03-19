@@ -1,0 +1,11 @@
+[output]
+dir = "./showcase"
+formats = ["png"]
+
+[[scenes]]
+type = "terminal"
+command = "go run ./examples/basic/"
+name = "agent-basic"
+theme = "dracula"
+cols = 100
+maxLines = 40

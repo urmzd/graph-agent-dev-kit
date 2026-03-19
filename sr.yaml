@@ -1,0 +1,36 @@
+branches:
+  - main
+
+tag_prefix: "v"
+
+commit_pattern: '^(?P<type>\w+)(?:\((?P<scope>[^)]+)\))?(?P<breaking>!)?:\s+(?P<description>.+)'
+
+breaking_section: Breaking Changes
+misc_section: Miscellaneous
+
+types:
+  - name: feat
+    bump: minor
+    section: Features
+  - name: fix
+    bump: patch
+    section: Bug Fixes
+  - name: perf
+    bump: patch
+    section: Performance
+  - name: docs
+    section: Documentation
+  - name: refactor
+    section: Refactoring
+  - name: revert
+    section: Reverts
+  - name: chore
+  - name: ci
+  - name: test
+  - name: build
+  - name: style
+
+changelog:
+  file: CHANGELOG.md
+
+floating_tags: true
