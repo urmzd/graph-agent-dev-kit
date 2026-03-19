@@ -88,3 +88,24 @@ type FileContent struct {
 }
 
 func (FileContent) isUserContent() {}
+
+// ── Feedback ──────────────────────────────────────────────────────────
+
+// Rating represents a binary feedback signal.
+type Rating int
+
+const (
+	RatingPositive Rating = 1
+	RatingNegative Rating = -1
+)
+
+// FeedbackContent captures a user's quality rating and optional comment
+// on a prior assistant response. Stored in the tree as metadata — stripped
+// before messages reach the LLM.
+type FeedbackContent struct {
+	TargetNodeID string `json:"target_node_id"` // the node being rated (typically an AssistantMessage)
+	Rating       Rating `json:"rating"`         // positive or negative
+	Comment      string `json:"comment,omitempty"`
+}
+
+func (FeedbackContent) isUserContent() {}

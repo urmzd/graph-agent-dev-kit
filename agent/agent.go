@@ -123,6 +123,73 @@ func (a *Agent) Tree() *tree.Tree {
 	return a.cfg.Tree
 }
 
+// Feedback records a rating and optional comment on a node in the conversation tree.
+// The feedback is persisted as a FeedbackContent block in a UserMessage appended
+// at the tip of the active branch. It is metadata — never sent to the LLM.
+func (a *Agent) Feedback(targetNodeID core.NodeID, rating core.Rating, comment string, branch ...core.BranchID) (*core.Node, error) {
+	tr := a.cfg.Tree
+
+	b := tr.Active()
+	if len(branch) > 0 {
+		b = branch[0]
+	}
+
+	tip, err := tr.Tip(b)
+	if err != nil {
+		return nil, err
+	}
+
+	msg := core.UserMessage{Content: []core.UserContent{
+		core.FeedbackContent{
+			TargetNodeID: string(targetNodeID),
+			Rating:       rating,
+			Comment:      comment,
+		},
+	}}
+
+	return tr.AddChild(tip.ID, msg)
+}
+
+// FeedbackEntry is a single piece of feedback extracted from the tree.
+type FeedbackEntry struct {
+	NodeID       core.NodeID // the feedback node itself
+	TargetNodeID core.NodeID // the node being rated
+	Rating       core.Rating
+	Comment      string
+}
+
+// FeedbackSummary collects all feedback entries on the given branch.
+func (a *Agent) FeedbackSummary(branch ...core.BranchID) ([]FeedbackEntry, error) {
+	b := a.cfg.Tree.Active()
+	if len(branch) > 0 {
+		b = branch[0]
+	}
+
+	messages, err := a.cfg.Tree.FlattenBranchAnnotated(b)
+	if err != nil {
+		return nil, err
+	}
+
+	var entries []FeedbackEntry
+	for _, am := range messages {
+		um, ok := am.Message.(core.UserMessage)
+		if !ok {
+			continue
+		}
+		for _, c := range um.Content {
+			if fb, ok := c.(core.FeedbackContent); ok {
+				entries = append(entries, FeedbackEntry{
+					NodeID:       am.NodeID,
+					TargetNodeID: core.NodeID(fb.TargetNodeID),
+					Rating:       fb.Rating,
+					Comment:      fb.Comment,
+				})
+			}
+		}
+	}
+	return entries, nil
+}
+
 // Invoke starts the agent loop on the active branch and returns a stream of deltas.
 // Input messages are appended as child nodes and all responses are persisted to the tree.
 func (a *Agent) Invoke(ctx context.Context, input []core.Message, branch ...core.BranchID) *EventStream {
@@ -193,8 +260,9 @@ func mergeConfig(rc *resolvedConfig, cc core.ConfigContent) {
 	}
 }
 
-// stripConfig removes ConfigContent blocks from messages before sending to the LLM.
-func stripConfig(messages []core.Message) []core.Message {
+// stripMetadata removes ConfigContent and FeedbackContent blocks from messages
+// before sending to the LLM. These are tree metadata, not conversation context.
+func stripMetadata(messages []core.Message) []core.Message {
 	out := make([]core.Message, 0, len(messages))
 	for _, msg := range messages {
 		switch v := msg.(type) {
@@ -211,9 +279,11 @@ func stripConfig(messages []core.Message) []core.Message {
 		case core.UserMessage:
 			filtered := make([]core.UserContent, 0, len(v.Content))
 			for _, c := range v.Content {
-				if _, ok := c.(core.ConfigContent); !ok {
-					filtered = append(filtered, c)
+				switch c.(type) {
+				case core.ConfigContent, core.FeedbackContent:
+					continue
 				}
+				filtered = append(filtered, c)
 			}
 			if len(filtered) > 0 {
 				out = append(out, core.UserMessage{Content: filtered})
@@ -373,7 +443,7 @@ func (a *Agent) runLoop(ctx context.Context, stream *EventStream, input []core.M
 		}
 
 		// Strip config before sending to LLM or compactor.
-		llmMessages := stripConfig(messages)
+		llmMessages := stripMetadata(messages)
 
 		// Resolve file URIs to data.
 		llmMessages = a.resolveFiles(ctx, llmMessages)

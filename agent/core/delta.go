@@ -109,6 +109,17 @@ type DoneDelta struct{}
 
 func (DoneDelta) isDelta() {}
 
+// ── Feedback deltas ─────────────────────────────────────────────────
+
+// FeedbackDelta signals that feedback was recorded on a node.
+type FeedbackDelta struct {
+	TargetNodeID string
+	Rating       Rating
+	Comment      string
+}
+
+func (FeedbackDelta) isDelta() {}
+
 // ── Metadata deltas ──────────────────────────────────────────────────
 
 // UsageDelta carries token usage and latency from an LLM call.

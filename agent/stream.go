@@ -151,9 +151,16 @@ func replayToolResults(stream *EventStream, content []core.SystemContent) {
 
 func replayUserToolResults(stream *EventStream, content []core.UserContent) {
 	for _, c := range content {
-		if tr, ok := c.(core.ToolResultContent); ok {
-			stream.send(core.ToolExecStartDelta{ToolCallID: tr.ToolCallID})
-			stream.send(core.ToolExecEndDelta{ToolCallID: tr.ToolCallID, Result: tr.Text})
+		switch v := c.(type) {
+		case core.ToolResultContent:
+			stream.send(core.ToolExecStartDelta{ToolCallID: v.ToolCallID})
+			stream.send(core.ToolExecEndDelta{ToolCallID: v.ToolCallID, Result: v.Text})
+		case core.FeedbackContent:
+			stream.send(core.FeedbackDelta{
+				TargetNodeID: v.TargetNodeID,
+				Rating:       v.Rating,
+				Comment:      v.Comment,
+			})
 		}
 	}
 }

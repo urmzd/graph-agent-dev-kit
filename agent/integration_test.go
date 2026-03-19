@@ -3162,3 +3162,173 @@ func TestSubAgentMaxIterRespected(t *testing.T) {
 		t.Fatal("agent did not complete -- child MaxIter not respected")
 	}
 }
+
+// ===================================================================
+// Feedback (RLHF)
+// ===================================================================
+
+func TestFeedback(t *testing.T) {
+	agent := NewAgent(AgentConfig{
+		Name:         "test",
+		SystemPrompt: "Hello",
+		Provider:     &mockProvider{response: "I am helpful"},
+	})
+
+	// Run a conversation.
+	stream := agent.Invoke(context.Background(), []core.Message{
+		core.NewUserMessage("Hi"),
+	})
+	collectDeltas(stream)
+	stream.Wait()
+
+	// Find the assistant node to rate.
+	branch := agent.Tree().Active()
+	tip, err := agent.Tree().Tip(branch)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Leave positive feedback.
+	fbNode, err := agent.Feedback(tip.ID, core.RatingPositive, "Great response!")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fbNode == nil {
+		t.Fatal("expected feedback node")
+	}
+
+	// Leave negative feedback on the same node.
+	_, err = agent.Feedback(tip.ID, core.RatingNegative, "Actually, not helpful")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Collect feedback summary.
+	entries, err := agent.FeedbackSummary()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("expected 2 feedback entries, got %d", len(entries))
+	}
+
+	if entries[0].Rating != core.RatingPositive {
+		t.Errorf("expected positive rating, got %d", entries[0].Rating)
+	}
+	if entries[0].Comment != "Great response!" {
+		t.Errorf("expected comment 'Great response!', got %q", entries[0].Comment)
+	}
+	if entries[0].TargetNodeID != tip.ID {
+		t.Errorf("expected target %s, got %s", tip.ID, entries[0].TargetNodeID)
+	}
+
+	if entries[1].Rating != core.RatingNegative {
+		t.Errorf("expected negative rating, got %d", entries[1].Rating)
+	}
+}
+
+func TestFeedbackStrippedFromLLM(t *testing.T) {
+	provider := &toolCallProvider{
+		toolName: "greet",
+		toolID:   "tc-1",
+		toolArgs: map[string]any{"name": "World"},
+		response: "Done",
+	}
+
+	greetTool := &core.ToolFunc{
+		Def: core.ToolDef{
+			Name: "greet",
+			Parameters: core.ParameterSchema{
+				Type: "object",
+				Properties: map[string]core.PropertyDef{
+					"name": {Type: "string"},
+				},
+			},
+		},
+		Fn: func(_ context.Context, args map[string]any) (string, error) {
+			return fmt.Sprintf("Hello, %v!", args["name"]), nil
+		},
+	}
+
+	agent := NewAgent(AgentConfig{
+		Name:         "test",
+		SystemPrompt: "Hello",
+		Provider:     provider,
+		Tools:        core.NewToolRegistry(greetTool),
+	})
+
+	// First conversation turn.
+	stream := agent.Invoke(context.Background(), []core.Message{
+		core.NewUserMessage("Greet someone"),
+	})
+	collectDeltas(stream)
+	stream.Wait()
+
+	// Attach feedback.
+	tip, _ := agent.Tree().Tip(agent.Tree().Active())
+	agent.Feedback(tip.ID, core.RatingPositive, "nice")
+
+	// Verify feedback is in the tree but stripped from LLM messages.
+	messages, _ := agent.Tree().FlattenBranch(agent.Tree().Active())
+	hasFeedback := false
+	for _, msg := range messages {
+		if um, ok := msg.(core.UserMessage); ok {
+			for _, c := range um.Content {
+				if _, ok := c.(core.FeedbackContent); ok {
+					hasFeedback = true
+				}
+			}
+		}
+	}
+	if !hasFeedback {
+		t.Fatal("expected feedback in tree messages")
+	}
+
+	stripped := stripMetadata(messages)
+	for _, msg := range stripped {
+		if um, ok := msg.(core.UserMessage); ok {
+			for _, c := range um.Content {
+				if _, ok := c.(core.FeedbackContent); ok {
+					t.Fatal("feedback should be stripped from LLM messages")
+				}
+			}
+		}
+	}
+}
+
+func TestFeedbackReplay(t *testing.T) {
+	messages := []core.Message{
+		core.NewSystemMessage("system"),
+		core.NewUserMessage("hello"),
+		core.AssistantMessage{Content: []core.AssistantContent{
+			core.TextContent{Text: "Hi there!"},
+		}},
+		core.UserMessage{Content: []core.UserContent{
+			core.FeedbackContent{
+				TargetNodeID: "node-123",
+				Rating:       core.RatingNegative,
+				Comment:      "too terse",
+			},
+		}},
+	}
+
+	stream := Replay(messages)
+	var gotFeedback bool
+	for d := range stream.Deltas() {
+		if fb, ok := d.(core.FeedbackDelta); ok {
+			gotFeedback = true
+			if fb.Rating != core.RatingNegative {
+				t.Errorf("expected negative rating, got %d", fb.Rating)
+			}
+			if fb.Comment != "too terse" {
+				t.Errorf("expected comment 'too terse', got %q", fb.Comment)
+			}
+			if fb.TargetNodeID != "node-123" {
+				t.Errorf("expected target node-123, got %s", fb.TargetNodeID)
+			}
+		}
+	}
+	if !gotFeedback {
+		t.Fatal("expected FeedbackDelta during replay")
+	}
+}
