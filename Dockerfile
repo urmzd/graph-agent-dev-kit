@@ -13,13 +13,13 @@ RUN go mod download
 COPY . .
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-    go build -trimpath -ldflags="-s -w" -o /out/gadk ./cmd/gadk
+    go build -trimpath -ldflags="-s -w" -o /out/saige ./cmd/saige
 
 # ---- Runtime stage ----
 FROM alpine:3.21
 
 RUN apk add --no-cache ca-certificates
 
-COPY --from=builder /out/gadk /usr/local/bin/gadk
+COPY --from=builder /out/saige /usr/local/bin/saige
 
-ENTRYPOINT ["gadk"]
+ENTRYPOINT ["saige"]

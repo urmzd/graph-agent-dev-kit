@@ -1,4 +1,4 @@
-# graph-agent-dev-kit development commands
+# saige development commands
 
 # List available recipes
 default:
@@ -50,7 +50,7 @@ fuzz PACKAGE FUNC DURATION="30s":
 
 # Build docker image
 docker-build:
-    docker build -t graph-agent-dev-kit .
+    docker build -t saige .
 
 # Clean build artifacts
 clean:
