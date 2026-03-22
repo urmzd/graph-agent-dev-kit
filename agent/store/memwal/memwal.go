@@ -1,6 +1,7 @@
 package memwal
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -29,7 +30,7 @@ func New() *WAL {
 	}
 }
 
-func (w *WAL) Begin() (core.TxID, error) {
+func (w *WAL) Begin(_ context.Context) (core.TxID, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.nextID++
@@ -38,7 +39,7 @@ func (w *WAL) Begin() (core.TxID, error) {
 	return id, nil
 }
 
-func (w *WAL) Append(txID core.TxID, op core.TxOp) error {
+func (w *WAL) Append(_ context.Context, txID core.TxID, op core.TxOp) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	tx, ok := w.txns[txID]
@@ -52,7 +53,7 @@ func (w *WAL) Append(txID core.TxID, op core.TxOp) error {
 	return nil
 }
 
-func (w *WAL) Commit(txID core.TxID) error {
+func (w *WAL) Commit(_ context.Context, txID core.TxID) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	tx, ok := w.txns[txID]
@@ -66,7 +67,7 @@ func (w *WAL) Commit(txID core.TxID) error {
 	return nil
 }
 
-func (w *WAL) Abort(txID core.TxID) error {
+func (w *WAL) Abort(_ context.Context, txID core.TxID) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	tx, ok := w.txns[txID]
@@ -77,7 +78,7 @@ func (w *WAL) Abort(txID core.TxID) error {
 	return nil
 }
 
-func (w *WAL) Recover() ([]core.TxID, error) {
+func (w *WAL) Recover(_ context.Context) ([]core.TxID, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	var committed []core.TxID
@@ -89,7 +90,7 @@ func (w *WAL) Recover() ([]core.TxID, error) {
 	return committed, nil
 }
 
-func (w *WAL) Replay(txID core.TxID) ([]core.TxOp, error) {
+func (w *WAL) Replay(_ context.Context, txID core.TxID) ([]core.TxOp, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	tx, ok := w.txns[txID]
