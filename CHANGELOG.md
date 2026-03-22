@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.1 (2026-03-22)
+
+### Bug Fixes
+
+- **examples**: update default ollama model to qwen3.5:4b ([310170d](https://github.com/urmzd/graph-agent-dev-kit/commit/310170d6d612d8cd0fe2f173a5377415de4d3282))
+
+### Miscellaneous
+
+- **teasr**: configure output formats and font settings ([ae7b1f3](https://github.com/urmzd/graph-agent-dev-kit/commit/ae7b1f3b5ae75d1ef0d68670659c8f5c262d621d))
+
+[Full Changelog](https://github.com/urmzd/graph-agent-dev-kit/compare/v0.3.0...v0.3.1)
+
+
 ## 0.3.0 (2026-03-22)
 
 ### Features
