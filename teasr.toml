@@ -1,11 +1,27 @@
 [output]
 dir = "./showcase"
-formats = ["png"]
+
+[[output.formats]]
+output_type = "png"
+
+[font]
+family = "MonaspiceNe Nerd Font"
 
 [[scenes]]
 type = "terminal"
-command = "go run ./examples/basic/"
 name = "agent-basic"
 theme = "dracula"
+cwd = "."
 cols = 100
-maxLines = 40
+rows = 40
+
+[[scenes.interactions]]
+type = "type"
+text = "go run ./examples/agent/basic/"
+speed = 50
+[[scenes.interactions]]
+type = "key"
+key = "enter"
+[[scenes.interactions]]
+type = "wait"
+duration = 15000
