@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/types"
 )
 
 // txState tracks the state of an in-flight transaction.
 type txState struct {
-	ops       []core.TxOp
+	ops       []types.TxOp
 	committed bool
 	aborted   bool
 }
@@ -19,27 +19,27 @@ type txState struct {
 // Suitable for testing; offers no crash durability.
 type WAL struct {
 	mu     sync.Mutex
-	txns   map[core.TxID]*txState
+	txns   map[types.TxID]*txState
 	nextID uint64
 }
 
 // New creates a new in-memory WAL.
 func New() *WAL {
 	return &WAL{
-		txns: make(map[core.TxID]*txState),
+		txns: make(map[types.TxID]*txState),
 	}
 }
 
-func (w *WAL) Begin(_ context.Context) (core.TxID, error) {
+func (w *WAL) Begin(_ context.Context) (types.TxID, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	w.nextID++
-	id := core.TxID(fmt.Sprintf("tx-%d", w.nextID))
+	id := types.TxID(fmt.Sprintf("tx-%d", w.nextID))
 	w.txns[id] = &txState{}
 	return id, nil
 }
 
-func (w *WAL) Append(_ context.Context, txID core.TxID, op core.TxOp) error {
+func (w *WAL) Append(_ context.Context, txID types.TxID, op types.TxOp) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	tx, ok := w.txns[txID]
@@ -53,7 +53,7 @@ func (w *WAL) Append(_ context.Context, txID core.TxID, op core.TxOp) error {
 	return nil
 }
 
-func (w *WAL) Commit(_ context.Context, txID core.TxID) error {
+func (w *WAL) Commit(_ context.Context, txID types.TxID) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	tx, ok := w.txns[txID]
@@ -67,7 +67,7 @@ func (w *WAL) Commit(_ context.Context, txID core.TxID) error {
 	return nil
 }
 
-func (w *WAL) Abort(_ context.Context, txID core.TxID) error {
+func (w *WAL) Abort(_ context.Context, txID types.TxID) error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	tx, ok := w.txns[txID]
@@ -78,10 +78,10 @@ func (w *WAL) Abort(_ context.Context, txID core.TxID) error {
 	return nil
 }
 
-func (w *WAL) Recover(_ context.Context) ([]core.TxID, error) {
+func (w *WAL) Recover(_ context.Context) ([]types.TxID, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	var committed []core.TxID
+	var committed []types.TxID
 	for id, tx := range w.txns {
 		if tx.committed {
 			committed = append(committed, id)
@@ -90,14 +90,14 @@ func (w *WAL) Recover(_ context.Context) ([]core.TxID, error) {
 	return committed, nil
 }
 
-func (w *WAL) Replay(_ context.Context, txID core.TxID) ([]core.TxOp, error) {
+func (w *WAL) Replay(_ context.Context, txID types.TxID) ([]types.TxOp, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	tx, ok := w.txns[txID]
 	if !ok {
 		return nil, fmt.Errorf("unknown transaction: %s", txID)
 	}
-	ops := make([]core.TxOp, len(tx.ops))
+	ops := make([]types.TxOp, len(tx.ops))
 	copy(ops, tx.ops)
 	return ops, nil
 }

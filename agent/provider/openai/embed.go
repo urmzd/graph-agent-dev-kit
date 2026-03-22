@@ -7,7 +7,7 @@ import (
 	"github.com/openai/openai-go/v3/option"
 )
 
-// Embedder implements core.Embedder using the official OpenAI SDK.
+// Embedder implements types.Embedder using the official OpenAI SDK.
 type Embedder struct {
 	client openai.Client
 	model  openai.EmbeddingModel
@@ -29,7 +29,7 @@ func NewEmbedder(apiKey, model string, opts ...Option) *Embedder {
 	}
 }
 
-// Embed implements core.Embedder.
+// Embed implements types.Embedder.
 func (e *Embedder) Embed(ctx context.Context, texts []string) ([][]float32, error) {
 	resp, err := e.client.Embeddings.New(ctx, openai.EmbeddingNewParams{
 		Input: openai.EmbeddingNewParamsInputUnion{

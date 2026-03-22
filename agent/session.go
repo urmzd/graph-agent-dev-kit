@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/types"
 )
 
 // Session represents a serializable agent conversation state.
@@ -27,7 +27,7 @@ func (a *Agent) SaveSession() (*Session, error) {
 
 	now := time.Now()
 	return &Session{
-		ID:        core.NewID(),
+		ID:        types.NewID(),
 		CreatedAt: now,
 		UpdatedAt: now,
 		TreeData:  treeData,

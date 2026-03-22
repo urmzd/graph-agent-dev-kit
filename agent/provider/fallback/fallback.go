@@ -3,25 +3,25 @@ package fallback
 import (
 	"context"
 
-	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/types"
 )
 
 // Provider tries providers in order, falling back on failure.
 // By default it falls back on any error. Set FallbackOn to control
-// which errors trigger fallback (e.g. core.IsTransient for transient-only).
+// which errors trigger fallback (e.g. types.IsTransient for transient-only).
 type Provider struct {
-	Providers  []core.Provider
+	Providers  []types.Provider
 	FallbackOn func(error) bool // nil = fallback on any error
 }
 
 // New creates a provider that tries each in order.
-func New(providers ...core.Provider) *Provider {
+func New(providers ...types.Provider) *Provider {
 	return &Provider{Providers: providers}
 }
 
 func (f *Provider) Name() string { return "fallback" }
 
-func (f *Provider) ChatStream(ctx context.Context, messages []core.Message, tools []core.ToolDef) (<-chan core.Delta, error) {
+func (f *Provider) ChatStream(ctx context.Context, messages []types.Message, tools []types.ToolDef) (<-chan types.Delta, error) {
 	shouldFallback := f.FallbackOn
 	if shouldFallback == nil {
 		shouldFallback = func(error) bool { return true }
@@ -43,13 +43,13 @@ func (f *Provider) ChatStream(ctx context.Context, messages []core.Message, tool
 		}
 	}
 
-	return nil, &core.FallbackError{Errors: errs}
+	return nil, &types.FallbackError{Errors: errs}
 }
 
-// ChatStreamWithSchema implements core.StructuredOutputProvider.
+// ChatStreamWithSchema implements types.StructuredOutputProvider.
 // For each provider, it tries ChatStreamWithSchema if the provider supports it,
 // otherwise falls back to ChatStream.
-func (f *Provider) ChatStreamWithSchema(ctx context.Context, messages []core.Message, tools []core.ToolDef, schema *core.ParameterSchema) (<-chan core.Delta, error) {
+func (f *Provider) ChatStreamWithSchema(ctx context.Context, messages []types.Message, tools []types.ToolDef, schema *types.ParameterSchema) (<-chan types.Delta, error) {
 	shouldFallback := f.FallbackOn
 	if shouldFallback == nil {
 		shouldFallback = func(error) bool { return true }
@@ -57,10 +57,10 @@ func (f *Provider) ChatStreamWithSchema(ctx context.Context, messages []core.Mes
 
 	var errs []error
 	for _, p := range f.Providers {
-		var ch <-chan core.Delta
+		var ch <-chan types.Delta
 		var err error
 
-		if sp, ok := p.(core.StructuredOutputProvider); ok {
+		if sp, ok := p.(types.StructuredOutputProvider); ok {
 			ch, err = sp.ChatStreamWithSchema(ctx, messages, tools, schema)
 		} else {
 			ch, err = p.ChatStream(ctx, messages, tools)
@@ -79,5 +79,5 @@ func (f *Provider) ChatStreamWithSchema(ctx context.Context, messages []core.Mes
 		}
 	}
 
-	return nil, &core.FallbackError{Errors: errs}
+	return nil, &types.FallbackError{Errors: errs}
 }

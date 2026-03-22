@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/types"
 )
 
 // mockProvider returns a fixed text response.
@@ -13,11 +13,11 @@ type mockProvider struct {
 	response string
 }
 
-func (m *mockProvider) ChatStream(_ context.Context, _ []core.Message, _ []core.ToolDef) (<-chan core.Delta, error) {
-	ch := make(chan core.Delta, 3)
-	ch <- core.TextStartDelta{}
-	ch <- core.TextContentDelta{Content: m.response}
-	ch <- core.TextEndDelta{}
+func (m *mockProvider) ChatStream(_ context.Context, _ []types.Message, _ []types.ToolDef) (<-chan types.Delta, error) {
+	ch := make(chan types.Delta, 3)
+	ch <- types.TextStartDelta{}
+	ch <- types.TextContentDelta{Content: m.response}
+	ch <- types.TextEndDelta{}
 	close(ch)
 	return ch, nil
 }
@@ -27,7 +27,7 @@ type errorProviderSimple struct {
 	err error
 }
 
-func (p *errorProviderSimple) ChatStream(_ context.Context, _ []core.Message, _ []core.ToolDef) (<-chan core.Delta, error) {
+func (p *errorProviderSimple) ChatStream(_ context.Context, _ []types.Message, _ []types.ToolDef) (<-chan types.Delta, error) {
 	return nil, p.err
 }
 
@@ -43,7 +43,7 @@ func TestFallbackProvider_FirstSucceeds(t *testing.T) {
 
 	var text string
 	for d := range ch {
-		if tc, ok := d.(core.TextContentDelta); ok {
+		if tc, ok := d.(types.TextContentDelta); ok {
 			text += tc.Content
 		}
 	}
@@ -53,9 +53,9 @@ func TestFallbackProvider_FirstSucceeds(t *testing.T) {
 }
 
 func TestFallbackProvider_FallsBackOnError(t *testing.T) {
-	failing := &errorProviderSimple{err: &core.ProviderError{
+	failing := &errorProviderSimple{err: &types.ProviderError{
 		Provider: "bad",
-		Kind:     core.ErrorKindTransient,
+		Kind:     types.ErrorKindTransient,
 		Err:      errors.New("connection refused"),
 	}}
 	good := &mockProvider{response: "from-backup"}
@@ -68,7 +68,7 @@ func TestFallbackProvider_FallsBackOnError(t *testing.T) {
 
 	var text string
 	for d := range ch {
-		if tc, ok := d.(core.TextContentDelta); ok {
+		if tc, ok := d.(types.TextContentDelta); ok {
 			text += tc.Content
 		}
 	}
@@ -78,8 +78,8 @@ func TestFallbackProvider_FallsBackOnError(t *testing.T) {
 }
 
 func TestFallbackProvider_AllFail(t *testing.T) {
-	p1 := &errorProviderSimple{err: &core.ProviderError{Provider: "a", Kind: core.ErrorKindTransient, Err: errors.New("fail-a")}}
-	p2 := &errorProviderSimple{err: &core.ProviderError{Provider: "b", Kind: core.ErrorKindTransient, Err: errors.New("fail-b")}}
+	p1 := &errorProviderSimple{err: &types.ProviderError{Provider: "a", Kind: types.ErrorKindTransient, Err: errors.New("fail-a")}}
+	p2 := &errorProviderSimple{err: &types.ProviderError{Provider: "b", Kind: types.ErrorKindTransient, Err: errors.New("fail-b")}}
 
 	fb := New(p1, p2)
 	_, err := fb.ChatStream(context.Background(), nil, nil)
@@ -87,25 +87,25 @@ func TestFallbackProvider_AllFail(t *testing.T) {
 		t.Fatal("expected error")
 	}
 
-	var fe *core.FallbackError
+	var fe *types.FallbackError
 	if !errors.As(err, &fe) {
 		t.Fatalf("expected *FallbackError, got %T", err)
 	}
 	if len(fe.Errors) != 2 {
 		t.Errorf("errors = %d, want 2", len(fe.Errors))
 	}
-	if !errors.Is(err, core.ErrProviderFailed) {
+	if !errors.Is(err, types.ErrProviderFailed) {
 		t.Error("FallbackError should match ErrProviderFailed")
 	}
 }
 
 func TestFallbackProvider_StopsOnPermanentWhenConfigured(t *testing.T) {
-	perm := &errorProviderSimple{err: &core.ProviderError{Provider: "auth-fail", Kind: core.ErrorKindPermanent, Err: errors.New("unauthorized")}}
+	perm := &errorProviderSimple{err: &types.ProviderError{Provider: "auth-fail", Kind: types.ErrorKindPermanent, Err: errors.New("unauthorized")}}
 	good := &mockProvider{response: "should not reach"}
 
 	fb := &Provider{
-		Providers:  []core.Provider{perm, good},
-		FallbackOn: core.IsTransient, // only fallback on transient
+		Providers:  []types.Provider{perm, good},
+		FallbackOn: types.IsTransient, // only fallback on transient
 	}
 
 	_, err := fb.ChatStream(context.Background(), nil, nil)
@@ -113,7 +113,7 @@ func TestFallbackProvider_StopsOnPermanentWhenConfigured(t *testing.T) {
 		t.Fatal("expected error")
 	}
 
-	var fe *core.FallbackError
+	var fe *types.FallbackError
 	if !errors.As(err, &fe) {
 		t.Fatalf("expected *FallbackError, got %T", err)
 	}
@@ -126,7 +126,7 @@ func TestFallbackProvider_ContextCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	p1 := &errorProviderSimple{err: &core.ProviderError{Provider: "a", Kind: core.ErrorKindTransient, Err: errors.New("fail")}}
+	p1 := &errorProviderSimple{err: &types.ProviderError{Provider: "a", Kind: types.ErrorKindTransient, Err: errors.New("fail")}}
 	p2 := &mockProvider{response: "should not reach"}
 
 	fb := New(p1, p2)
@@ -135,7 +135,7 @@ func TestFallbackProvider_ContextCancelled(t *testing.T) {
 		t.Fatal("expected error")
 	}
 
-	var fe *core.FallbackError
+	var fe *types.FallbackError
 	if !errors.As(err, &fe) {
 		t.Fatalf("expected *FallbackError, got %T", err)
 	}

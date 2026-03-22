@@ -3,37 +3,37 @@ package tree
 import (
 	"fmt"
 
-	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/types"
 )
 
 // AnnotatedMessage pairs a message with its tree metadata.
 type AnnotatedMessage struct {
-	Message  core.Message
-	NodeID   core.NodeID
-	Path     core.TreePath
+	Message  types.Message
+	NodeID   types.NodeID
+	Path     types.TreePath
 	Depth    int
-	BranchID core.BranchID
-	State    core.NodeState
+	BranchID types.BranchID
+	State    types.NodeState
 }
 
 // Flatten walks the path from root to the given node and collects messages.
 // Archived nodes are skipped. Compacted nodes contribute their summary message.
-func (t *Tree) Flatten(toNodeID core.NodeID) ([]core.Message, error) {
+func (t *Tree) Flatten(toNodeID types.NodeID) ([]types.Message, error) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	return t.flattenUnlocked(toNodeID)
 }
 
-func (t *Tree) flattenUnlocked(toNodeID core.NodeID) ([]core.Message, error) {
+func (t *Tree) flattenUnlocked(toNodeID types.NodeID) ([]types.Message, error) {
 	path, err := t.pathUnlocked(toNodeID)
 	if err != nil {
 		return nil, err
 	}
 
-	messages := make([]core.Message, 0, len(path))
+	messages := make([]types.Message, 0, len(path))
 	for _, nid := range path {
 		node := t.nodes[nid]
-		if node.State != core.NodeArchived {
+		if node.State != types.NodeArchived {
 			messages = append(messages, node.Message)
 		}
 	}
@@ -41,7 +41,7 @@ func (t *Tree) flattenUnlocked(toNodeID core.NodeID) ([]core.Message, error) {
 }
 
 // FlattenBranch flattens the path from root to the tip of the given branch.
-func (t *Tree) FlattenBranch(branch core.BranchID) ([]core.Message, error) {
+func (t *Tree) FlattenBranch(branch types.BranchID) ([]types.Message, error) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
@@ -55,13 +55,13 @@ func (t *Tree) FlattenBranch(branch core.BranchID) ([]core.Message, error) {
 // FlattenAnnotated walks the path from root to the given node and returns
 // annotated messages with full metadata. Archived nodes are skipped.
 // Compacted nodes are included with State: NodeCompacted.
-func (t *Tree) FlattenAnnotated(toNodeID core.NodeID) ([]AnnotatedMessage, error) {
+func (t *Tree) FlattenAnnotated(toNodeID types.NodeID) ([]AnnotatedMessage, error) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 	return t.flattenAnnotatedUnlocked(toNodeID)
 }
 
-func (t *Tree) flattenAnnotatedUnlocked(toNodeID core.NodeID) ([]AnnotatedMessage, error) {
+func (t *Tree) flattenAnnotatedUnlocked(toNodeID types.NodeID) ([]AnnotatedMessage, error) {
 	path, err := t.pathUnlocked(toNodeID)
 	if err != nil {
 		return nil, err
@@ -70,7 +70,7 @@ func (t *Tree) flattenAnnotatedUnlocked(toNodeID core.NodeID) ([]AnnotatedMessag
 	result := make([]AnnotatedMessage, 0, len(path))
 	for _, nid := range path {
 		node := t.nodes[nid]
-		if node.State == core.NodeArchived {
+		if node.State == types.NodeArchived {
 			continue
 		}
 		tp, err := t.nodePathUnlocked(nid)
@@ -91,7 +91,7 @@ func (t *Tree) flattenAnnotatedUnlocked(toNodeID core.NodeID) ([]AnnotatedMessag
 
 // FlattenBranchAnnotated flattens the path from root to the tip of the given
 // branch, returning annotated messages.
-func (t *Tree) FlattenBranchAnnotated(branch core.BranchID) ([]AnnotatedMessage, error) {
+func (t *Tree) FlattenBranchAnnotated(branch types.BranchID) ([]AnnotatedMessage, error) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 

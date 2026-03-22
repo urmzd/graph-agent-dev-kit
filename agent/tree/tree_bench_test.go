@@ -4,17 +4,17 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/types"
 )
 
 func BenchmarkAddChild(b *testing.B) {
-	tr, _ := New(core.NewSystemMessage("system"))
+	tr, _ := New(types.NewSystemMessage("system"))
 	root := tr.Root()
 
 	b.ResetTimer()
 	parent := root
 	for i := 0; i < b.N; i++ {
-		child, _ := tr.AddChild(parent.ID, core.NewUserMessage(fmt.Sprintf("msg-%d", i)))
+		child, _ := tr.AddChild(parent.ID, types.NewUserMessage(fmt.Sprintf("msg-%d", i)))
 		parent = child
 	}
 }
@@ -22,10 +22,10 @@ func BenchmarkAddChild(b *testing.B) {
 func BenchmarkFlattenBranch(b *testing.B) {
 	for _, depth := range []int{10, 100, 1000} {
 		b.Run(fmt.Sprintf("depth=%d", depth), func(b *testing.B) {
-			tr, _ := New(core.NewSystemMessage("system"))
+			tr, _ := New(types.NewSystemMessage("system"))
 			parent := tr.Root()
 			for i := 0; i < depth; i++ {
-				child, _ := tr.AddChild(parent.ID, core.NewUserMessage(fmt.Sprintf("msg-%d", i)))
+				child, _ := tr.AddChild(parent.ID, types.NewUserMessage(fmt.Sprintf("msg-%d", i)))
 				parent = child
 			}
 
@@ -39,12 +39,12 @@ func BenchmarkFlattenBranch(b *testing.B) {
 }
 
 func BenchmarkBranch(b *testing.B) {
-	tr, _ := New(core.NewSystemMessage("system"))
+	tr, _ := New(types.NewSystemMessage("system"))
 	root := tr.Root()
-	user, _ := tr.AddChild(root.ID, core.NewUserMessage("hello"))
+	user, _ := tr.AddChild(root.ID, types.NewUserMessage("hello"))
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		tr.Branch(user.ID, fmt.Sprintf("branch-%d", i), core.NewUserMessage("branched"))
+		tr.Branch(user.ID, fmt.Sprintf("branch-%d", i), types.NewUserMessage("branched"))
 	}
 }

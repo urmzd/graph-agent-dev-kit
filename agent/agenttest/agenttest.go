@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/types"
 )
 
 // ScriptedProvider replays predefined delta sequences, one per ChatStream call.
@@ -15,16 +15,16 @@ import (
 type ScriptedProvider struct {
 	mu        sync.Mutex
 	call      int
-	Responses [][]core.Delta
+	Responses [][]types.Delta
 }
 
-func (p *ScriptedProvider) ChatStream(_ context.Context, _ []core.Message, _ []core.ToolDef) (<-chan core.Delta, error) {
+func (p *ScriptedProvider) ChatStream(_ context.Context, _ []types.Message, _ []types.ToolDef) (<-chan types.Delta, error) {
 	p.mu.Lock()
 	idx := p.call
 	p.call++
 	p.mu.Unlock()
 
-	ch := make(chan core.Delta, 64)
+	ch := make(chan types.Delta, 64)
 	go func() {
 		defer close(ch)
 		if idx < len(p.Responses) {
@@ -37,25 +37,25 @@ func (p *ScriptedProvider) ChatStream(_ context.Context, _ []core.Message, _ []c
 }
 
 // TextResponse creates a delta sequence for a simple text response.
-func TextResponse(text string) []core.Delta {
-	return []core.Delta{
-		core.TextStartDelta{},
-		core.TextContentDelta{Content: text},
-		core.TextEndDelta{},
+func TextResponse(text string) []types.Delta {
+	return []types.Delta{
+		types.TextStartDelta{},
+		types.TextContentDelta{Content: text},
+		types.TextEndDelta{},
 	}
 }
 
 // ToolCallResponse creates a delta sequence for a tool call.
-func ToolCallResponse(id, name string, args map[string]any) []core.Delta {
-	return []core.Delta{
-		core.ToolCallStartDelta{ID: id, Name: name},
-		core.ToolCallEndDelta{Arguments: args},
+func ToolCallResponse(id, name string, args map[string]any) []types.Delta {
+	return []types.Delta{
+		types.ToolCallStartDelta{ID: id, Name: name},
+		types.ToolCallEndDelta{Arguments: args},
 	}
 }
 
 // CollectDeltas drains a delta channel into a slice.
-func CollectDeltas(ch <-chan core.Delta) []core.Delta {
-	var deltas []core.Delta
+func CollectDeltas(ch <-chan types.Delta) []types.Delta {
+	var deltas []types.Delta
 	for d := range ch {
 		deltas = append(deltas, d)
 	}
@@ -63,10 +63,10 @@ func CollectDeltas(ch <-chan core.Delta) []core.Delta {
 }
 
 // CollectText drains a delta channel and returns concatenated text content.
-func CollectText(ch <-chan core.Delta) string {
+func CollectText(ch <-chan types.Delta) string {
 	var sb strings.Builder
 	for d := range ch {
-		if tc, ok := d.(core.TextContentDelta); ok {
+		if tc, ok := d.(types.TextContentDelta); ok {
 			sb.WriteString(tc.Content)
 		}
 	}
@@ -74,16 +74,16 @@ func CollectText(ch <-chan core.Delta) string {
 }
 
 // CollectToolCalls drains a delta channel and returns all completed tool calls.
-func CollectToolCalls(ch <-chan core.Delta) []core.ToolUseContent {
-	var calls []core.ToolUseContent
+func CollectToolCalls(ch <-chan types.Delta) []types.ToolUseContent {
+	var calls []types.ToolUseContent
 	var currentID, currentName string
 	for d := range ch {
 		switch v := d.(type) {
-		case core.ToolCallStartDelta:
+		case types.ToolCallStartDelta:
 			currentID = v.ID
 			currentName = v.Name
-		case core.ToolCallEndDelta:
-			calls = append(calls, core.ToolUseContent{
+		case types.ToolCallEndDelta:
+			calls = append(calls, types.ToolUseContent{
 				ID:        currentID,
 				Name:      currentName,
 				Arguments: v.Arguments,
@@ -94,7 +94,7 @@ func CollectToolCalls(ch <-chan core.Delta) []core.ToolUseContent {
 }
 
 // AssertTextContains verifies the delta channel produces text containing substr.
-func AssertTextContains(t *testing.T, ch <-chan core.Delta, substr string) {
+func AssertTextContains(t *testing.T, ch <-chan types.Delta, substr string) {
 	t.Helper()
 	text := CollectText(ch)
 	if !strings.Contains(text, substr) {
@@ -103,10 +103,10 @@ func AssertTextContains(t *testing.T, ch <-chan core.Delta, substr string) {
 }
 
 // AssertToolCalled verifies a specific tool was called in the deltas.
-func AssertToolCalled(t *testing.T, deltas []core.Delta, name string) {
+func AssertToolCalled(t *testing.T, deltas []types.Delta, name string) {
 	t.Helper()
 	for _, d := range deltas {
-		if v, ok := d.(core.ToolCallStartDelta); ok && v.Name == name {
+		if v, ok := d.(types.ToolCallStartDelta); ok && v.Name == name {
 			return
 		}
 	}
@@ -114,20 +114,20 @@ func AssertToolCalled(t *testing.T, deltas []core.Delta, name string) {
 }
 
 // AssertNoErrors verifies no error deltas were emitted.
-func AssertNoErrors(t *testing.T, deltas []core.Delta) {
+func AssertNoErrors(t *testing.T, deltas []types.Delta) {
 	t.Helper()
 	for _, d := range deltas {
-		if v, ok := d.(core.ErrorDelta); ok {
+		if v, ok := d.(types.ErrorDelta); ok {
 			t.Errorf("unexpected error delta: %v", v.Error)
 		}
 	}
 }
 
 // AssertDone verifies a DoneDelta was emitted.
-func AssertDone(t *testing.T, deltas []core.Delta) {
+func AssertDone(t *testing.T, deltas []types.Delta) {
 	t.Helper()
 	for _, d := range deltas {
-		if _, ok := d.(core.DoneDelta); ok {
+		if _, ok := d.(types.DoneDelta); ok {
 			return
 		}
 	}
@@ -136,14 +136,14 @@ func AssertDone(t *testing.T, deltas []core.Delta) {
 
 // MockTool is a test tool with configurable behavior.
 type MockTool struct {
-	Def    core.ToolDef
+	Def    types.ToolDef
 	Result string
 	Err    error
 	Calls  []map[string]any // records all calls made
 	mu     sync.Mutex
 }
 
-func (t *MockTool) Definition() core.ToolDef { return t.Def }
+func (t *MockTool) Definition() types.ToolDef { return t.Def }
 
 func (t *MockTool) Execute(_ context.Context, args map[string]any) (string, error) {
 	t.mu.Lock()

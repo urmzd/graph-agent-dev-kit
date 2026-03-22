@@ -16,7 +16,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/types"
 )
 
 // ── Agent info header ──────────────────────────────────────────────
@@ -112,7 +112,7 @@ type activityEntry struct {
 	content   *strings.Builder // for activityAgentOutput and activityText
 	status    agentStatus      // for agent entries
 	errMsg    string
-	usage     *core.UsageDelta // for activityUsage
+	usage     *types.UsageDelta // for activityUsage
 }
 
 // ── Agent tracking ──────────────────────────────────────────────────
@@ -233,7 +233,7 @@ func (lr logRenderer) renderLog() string {
 // ── Bubbletea messages ──────────────────────────────────────────────
 
 type deltaMsg struct {
-	delta core.Delta
+	delta types.Delta
 }
 
 type streamDoneMsg struct{}
@@ -241,11 +241,11 @@ type streamDoneMsg struct{}
 // ── StreamModel ─────────────────────────────────────────────────────
 
 // StreamModel is a bubbletea model that consumes a delta channel from
-// an adk EventStream and displays real-time progress for tool calls
+// a saige EventStream and displays real-time progress for tool calls
 // and sub-agent executions using a scrollable activity log.
 type StreamModel struct {
 	header      AgentHeader
-	deltaCh     <-chan core.Delta
+	deltaCh     <-chan types.Delta
 	finalReport *strings.Builder
 	spinner     spinner.Model
 	viewport    viewport.Model
@@ -262,7 +262,7 @@ type StreamModel struct {
 
 // NewStreamModel creates a StreamModel that reads deltas from ch and
 // displays the given header info.
-func NewStreamModel(header AgentHeader, ch <-chan core.Delta) StreamModel {
+func NewStreamModel(header AgentHeader, ch <-chan types.Delta) StreamModel {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("12"))
@@ -327,15 +327,15 @@ func (m StreamModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m StreamModel) handleDelta(d core.Delta) (tea.Model, tea.Cmd) {
+func (m StreamModel) handleDelta(d types.Delta) (tea.Model, tea.Cmd) {
 	switch d := d.(type) {
-	case core.ToolCallStartDelta:
+	case types.ToolCallStartDelta:
 		m.log = append(m.log, activityEntry{
 			kind:     activityToolCall,
 			toolName: d.Name,
 		})
 
-	case core.ToolExecStartDelta:
+	case types.ToolExecStartDelta:
 		m.hasAgents = true
 		m.log = append(m.log, activityEntry{
 			kind:      activityAgentStart,
@@ -350,15 +350,15 @@ func (m StreamModel) handleDelta(d core.Delta) (tea.Model, tea.Cmd) {
 		})
 		m.toolCallIdx[d.ToolCallID] = idx
 
-	case core.ToolExecDelta:
+	case types.ToolExecDelta:
 		if idx, ok := m.toolCallIdx[d.ToolCallID]; ok {
 			entry := &m.log[idx]
-			if inner, ok := d.Inner.(core.TextContentDelta); ok {
+			if inner, ok := d.Inner.(types.TextContentDelta); ok {
 				entry.content.WriteString(inner.Content)
 			}
 		}
 
-	case core.ToolExecEndDelta:
+	case types.ToolExecEndDelta:
 		if idx, ok := m.toolCallIdx[d.ToolCallID]; ok {
 			entry := &m.log[idx]
 			if d.Error != "" {
@@ -375,7 +375,7 @@ func (m StreamModel) handleDelta(d core.Delta) (tea.Model, tea.Cmd) {
 			})
 		}
 
-	case core.ToolCallEndDelta:
+	case types.ToolCallEndDelta:
 		// Find the matching tool call entry and mark it done
 		for i := len(m.log) - 1; i >= 0; i-- {
 			if m.log[i].kind == activityToolCall {
@@ -387,20 +387,20 @@ func (m StreamModel) handleDelta(d core.Delta) (tea.Model, tea.Cmd) {
 			}
 		}
 
-	case core.MarkerDelta:
+	case types.MarkerDelta:
 		m.log = append(m.log, activityEntry{
 			kind:     activityMarker,
 			toolName: d.ToolName,
 		})
 
-	case core.UsageDelta:
+	case types.UsageDelta:
 		usage := d // copy
 		m.log = append(m.log, activityEntry{
 			kind:  activityUsage,
 			usage: &usage,
 		})
 
-	case core.TextContentDelta:
+	case types.TextContentDelta:
 		m.finalReport.WriteString(d.Content)
 		if m.hasAgents {
 			m.synthesizing = true
@@ -416,11 +416,11 @@ func (m StreamModel) handleDelta(d core.Delta) (tea.Model, tea.Cmd) {
 			m.log = append(m.log, entry)
 		}
 
-	case core.ErrorDelta:
+	case types.ErrorDelta:
 		m.err = d.Error
 		return m, tea.Quit
 
-	case core.DoneDelta:
+	case types.DoneDelta:
 		return m, tea.Quit
 	}
 
@@ -450,7 +450,7 @@ func (m StreamModel) View() string {
 
 // ── Delta bridge ────────────────────────────────────────────────────
 
-func listenForDelta(ch <-chan core.Delta) tea.Cmd {
+func listenForDelta(ch <-chan types.Delta) tea.Cmd {
 	return func() tea.Msg {
 		delta, ok := <-ch
 		if !ok {
@@ -509,7 +509,7 @@ type VerboseResult struct {
 // StreamVerbose consumes deltas from ch and writes styled progress output
 // to w. It does not require an interactive terminal. All delta types are
 // logged for a complete trace.
-func StreamVerbose(header AgentHeader, ch <-chan core.Delta, w io.Writer) VerboseResult {
+func StreamVerbose(header AgentHeader, ch <-chan types.Delta, w io.Writer) VerboseResult {
 	if w == nil {
 		w = os.Stdout
 	}
@@ -536,39 +536,39 @@ func StreamVerbose(header AgentHeader, ch <-chan core.Delta, w io.Writer) Verbos
 		switch d := delta.(type) {
 
 		// ── LLM text streaming ──────────────────────────────────────
-		case core.TextStartDelta:
+		case types.TextStartDelta:
 			ensureNewline()
 
-		case core.TextContentDelta:
+		case types.TextContentDelta:
 			text.WriteString(d.Content)
 			fmt.Fprint(w, d.Content)
 			coordinatorStreaming = true
 
-		case core.TextEndDelta:
+		case types.TextEndDelta:
 			ensureNewline()
 
 		// ── LLM tool call streaming ─────────────────────────────────
-		case core.ToolCallStartDelta:
+		case types.ToolCallStartDelta:
 			ensureNewline()
 			toolCallNames[d.ID] = d.Name
 			fmt.Fprintln(w, FormatToolCall(d.Name))
 
-		case core.ToolCallArgumentDelta:
+		case types.ToolCallArgumentDelta:
 			// argument JSON fragments — skip in verbose mode
 
-		case core.ToolCallEndDelta:
+		case types.ToolCallEndDelta:
 			// tool call fully parsed — logged at exec start
 
 		// ── Tool execution ──────────────────────────────────────────
-		case core.ToolExecStartDelta:
+		case types.ToolExecStartDelta:
 			ensureNewline()
 			agentNames[d.ToolCallID] = d.Name
 			agentNewLine[d.ToolCallID] = true
 			agentStarted[d.ToolCallID] = false
 			fmt.Fprintln(w, FormatDelegateStart(d.Name))
 
-		case core.ToolExecDelta:
-			if inner, ok := d.Inner.(core.TextContentDelta); ok {
+		case types.ToolExecDelta:
+			if inner, ok := d.Inner.(types.TextContentDelta); ok {
 				name := agentNames[d.ToolCallID]
 				agentStarted[d.ToolCallID] = true
 				content := inner.Content
@@ -597,7 +597,7 @@ func StreamVerbose(header AgentHeader, ch <-chan core.Delta, w io.Writer) Verbos
 				}
 			}
 
-		case core.ToolExecEndDelta:
+		case types.ToolExecEndDelta:
 			name := agentNames[d.ToolCallID]
 			if agentStarted[d.ToolCallID] && !agentNewLine[d.ToolCallID] {
 				fmt.Fprintln(w)
@@ -609,7 +609,7 @@ func StreamVerbose(header AgentHeader, ch <-chan core.Delta, w io.Writer) Verbos
 			}
 
 		// ── Markers ─────────────────────────────────────────────────
-		case core.MarkerDelta:
+		case types.MarkerDelta:
 			ensureNewline()
 			fmt.Fprintln(w, FormatMarker(d.ToolName))
 			for _, m := range d.Markers {
@@ -618,17 +618,17 @@ func StreamVerbose(header AgentHeader, ch <-chan core.Delta, w io.Writer) Verbos
 			}
 
 		// ── Metadata ────────────────────────────────────────────────
-		case core.UsageDelta:
+		case types.UsageDelta:
 			ensureNewline()
 			fmt.Fprintln(w, FormatUsage(d.PromptTokens, d.CompletionTokens, d.Latency.String()))
 
 		// ── Terminal ────────────────────────────────────────────────
-		case core.ErrorDelta:
+		case types.ErrorDelta:
 			ensureNewline()
 			fmt.Fprintln(w, statusError.Render(fmt.Sprintf("%s Error: %v", iconError, d.Error)))
 			return VerboseResult{Text: text.String(), Err: d.Error}
 
-		case core.DoneDelta:
+		case types.DoneDelta:
 			ensureNewline()
 			return VerboseResult{Text: text.String()}
 		}

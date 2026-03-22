@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/types"
 )
 
 // mockProvider returns a fixed text response.
@@ -15,11 +15,11 @@ type mockProvider struct {
 	response string
 }
 
-func (m *mockProvider) ChatStream(_ context.Context, _ []core.Message, _ []core.ToolDef) (<-chan core.Delta, error) {
-	ch := make(chan core.Delta, 3)
-	ch <- core.TextStartDelta{}
-	ch <- core.TextContentDelta{Content: m.response}
-	ch <- core.TextEndDelta{}
+func (m *mockProvider) ChatStream(_ context.Context, _ []types.Message, _ []types.ToolDef) (<-chan types.Delta, error) {
+	ch := make(chan types.Delta, 3)
+	ch <- types.TextStartDelta{}
+	ch <- types.TextContentDelta{Content: m.response}
+	ch <- types.TextEndDelta{}
 	close(ch)
 	return ch, nil
 }
@@ -29,7 +29,7 @@ type errorProviderSimple struct {
 	err error
 }
 
-func (p *errorProviderSimple) ChatStream(_ context.Context, _ []core.Message, _ []core.ToolDef) (<-chan core.Delta, error) {
+func (p *errorProviderSimple) ChatStream(_ context.Context, _ []types.Message, _ []types.ToolDef) (<-chan types.Delta, error) {
 	return nil, p.err
 }
 
@@ -44,7 +44,7 @@ func TestRetryProvider_SucceedsFirstTry(t *testing.T) {
 
 	var text string
 	for d := range ch {
-		if tc, ok := d.(core.TextContentDelta); ok {
+		if tc, ok := d.(types.TextContentDelta); ok {
 			text += tc.Content
 		}
 	}
@@ -58,9 +58,9 @@ func TestRetryProvider_RetriesOnTransient(t *testing.T) {
 	inner := &countingProvider{
 		calls:     &calls,
 		failUntil: 2,
-		err: &core.ProviderError{
+		err: &types.ProviderError{
 			Provider: "flaky",
-			Kind:     core.ErrorKindTransient,
+			Kind:     types.ErrorKindTransient,
 			Err:      errors.New("timeout"),
 		},
 		response: "recovered",
@@ -81,7 +81,7 @@ func TestRetryProvider_RetriesOnTransient(t *testing.T) {
 
 	var text string
 	for d := range ch {
-		if tc, ok := d.(core.TextContentDelta); ok {
+		if tc, ok := d.(types.TextContentDelta); ok {
 			text += tc.Content
 		}
 	}
@@ -94,9 +94,9 @@ func TestRetryProvider_RetriesOnTransient(t *testing.T) {
 }
 
 func TestRetryProvider_StopsOnPermanent(t *testing.T) {
-	inner := &errorProviderSimple{err: &core.ProviderError{
+	inner := &errorProviderSimple{err: &types.ProviderError{
 		Provider: "auth",
-		Kind:     core.ErrorKindPermanent,
+		Kind:     types.ErrorKindPermanent,
 		Err:      errors.New("unauthorized"),
 	}}
 
@@ -111,16 +111,16 @@ func TestRetryProvider_StopsOnPermanent(t *testing.T) {
 		t.Fatal("expected error")
 	}
 	// Should not have retried -- permanent error
-	var pe *core.ProviderError
+	var pe *types.ProviderError
 	if !errors.As(err, &pe) {
 		t.Fatalf("expected *ProviderError, got %T", err)
 	}
 }
 
 func TestRetryProvider_ExhaustsAttempts(t *testing.T) {
-	inner := &errorProviderSimple{err: &core.ProviderError{
+	inner := &errorProviderSimple{err: &types.ProviderError{
 		Provider: "down",
-		Kind:     core.ErrorKindTransient,
+		Kind:     types.ErrorKindTransient,
 		Err:      errors.New("server error"),
 	}}
 
@@ -135,22 +135,22 @@ func TestRetryProvider_ExhaustsAttempts(t *testing.T) {
 		t.Fatal("expected error")
 	}
 
-	var re *core.RetryError
+	var re *types.RetryError
 	if !errors.As(err, &re) {
 		t.Fatalf("expected *RetryError, got %T", err)
 	}
 	if re.Attempts != 2 {
 		t.Errorf("attempts = %d, want 2", re.Attempts)
 	}
-	if !errors.Is(re.Last, core.ErrProviderFailed) {
+	if !errors.Is(re.Last, types.ErrProviderFailed) {
 		t.Error("last error should match ErrProviderFailed")
 	}
 }
 
 func TestRetryProvider_ContextCancelledDuringBackoff(t *testing.T) {
-	inner := &errorProviderSimple{err: &core.ProviderError{
+	inner := &errorProviderSimple{err: &types.ProviderError{
 		Provider: "slow",
-		Kind:     core.ErrorKindTransient,
+		Kind:     types.ErrorKindTransient,
 		Err:      errors.New("timeout"),
 	}}
 
@@ -202,15 +202,15 @@ type countingProvider struct {
 	response  string
 }
 
-func (p *countingProvider) ChatStream(_ context.Context, _ []core.Message, _ []core.ToolDef) (<-chan core.Delta, error) {
+func (p *countingProvider) ChatStream(_ context.Context, _ []types.Message, _ []types.ToolDef) (<-chan types.Delta, error) {
 	n := p.calls.Add(1)
 	if n <= p.failUntil {
 		return nil, p.err
 	}
-	ch := make(chan core.Delta, 3)
-	ch <- core.TextStartDelta{}
-	ch <- core.TextContentDelta{Content: p.response}
-	ch <- core.TextEndDelta{}
+	ch := make(chan types.Delta, 3)
+	ch <- types.TextStartDelta{}
+	ch <- types.TextContentDelta{Content: p.response}
+	ch <- types.TextEndDelta{}
 	close(ch)
 	return ch, nil
 }

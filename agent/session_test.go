@@ -7,12 +7,12 @@ import (
 	"testing"
 
 	"github.com/urmzd/saige/agent/agenttest"
-	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/types"
 )
 
 func TestSaveAndLoadSession(t *testing.T) {
 	provider := &agenttest.ScriptedProvider{
-		Responses: [][]core.Delta{
+		Responses: [][]types.Delta{
 			agenttest.TextResponse("Hello back!"),
 		},
 	}
@@ -24,8 +24,8 @@ func TestSaveAndLoadSession(t *testing.T) {
 	})
 
 	// Invoke to build some conversation history
-	stream := a.Invoke(context.Background(), []core.Message{
-		core.NewUserMessage("Hello"),
+	stream := a.Invoke(context.Background(), []types.Message{
+		types.NewUserMessage("Hello"),
 	})
 	for range stream.Deltas() {
 	}
@@ -72,7 +72,7 @@ func TestSessionFileRoundTrip(t *testing.T) {
 		Name:         "test-agent",
 		SystemPrompt: "You are helpful.",
 		Provider: &agenttest.ScriptedProvider{
-			Responses: [][]core.Delta{
+			Responses: [][]types.Delta{
 				agenttest.TextResponse("Hi!"),
 			},
 		},

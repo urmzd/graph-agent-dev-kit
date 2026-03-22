@@ -6,7 +6,7 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// OllamaEmbedder implements core.Embedder using the Ollama API.
+// OllamaEmbedder implements types.Embedder using the Ollama API.
 type OllamaEmbedder struct {
 	Client *Client
 }
@@ -16,7 +16,7 @@ func NewEmbedder(client *Client) *OllamaEmbedder {
 	return &OllamaEmbedder{Client: client}
 }
 
-// Embed implements core.Embedder with parallel API calls.
+// Embed implements types.Embedder with parallel API calls.
 func (e *OllamaEmbedder) Embed(ctx context.Context, texts []string) ([][]float32, error) {
 	results := make([][]float32, len(texts))
 	g, gctx := errgroup.WithContext(ctx)

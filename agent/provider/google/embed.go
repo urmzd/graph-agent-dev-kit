@@ -7,7 +7,7 @@ import (
 	"google.golang.org/genai"
 )
 
-// Embedder implements core.Embedder using the official Google GenAI SDK.
+// Embedder implements types.Embedder using the official Google GenAI SDK.
 type Embedder struct {
 	client *genai.Client
 	model  string
@@ -25,7 +25,7 @@ func NewEmbedder(ctx context.Context, apiKey, model string) (*Embedder, error) {
 	return &Embedder{client: client, model: model}, nil
 }
 
-// Embed implements core.Embedder with parallel API calls.
+// Embed implements types.Embedder with parallel API calls.
 func (e *Embedder) Embed(ctx context.Context, texts []string) ([][]float32, error) {
 	embeddings := make([][]float32, len(texts))
 	g, gctx := errgroup.WithContext(ctx)

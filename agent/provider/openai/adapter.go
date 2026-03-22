@@ -11,13 +11,13 @@ import (
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
 	"github.com/openai/openai-go/v3/shared"
-	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/types"
 )
 
 // Compile-time interface checks.
 var (
-	_ core.StructuredOutputProvider = (*Adapter)(nil)
-	_ core.NamedProvider            = (*Adapter)(nil)
+	_ types.StructuredOutputProvider = (*Adapter)(nil)
+	_ types.NamedProvider            = (*Adapter)(nil)
 )
 
 // Option configures the OpenAI adapter.
@@ -32,8 +32,8 @@ func WithBaseURL(url string) Option {
 	return func(c *config) { c.baseURL = url }
 }
 
-// Adapter wraps the official OpenAI SDK client and implements core.Provider,
-// core.NamedProvider, core.StructuredOutputProvider, and core.ContentNegotiator.
+// Adapter wraps the official OpenAI SDK client and implements types.Provider,
+// types.NamedProvider, types.StructuredOutputProvider, and types.ContentNegotiator.
 type Adapter struct {
 	client openai.Client
 	model  openai.ChatModel
@@ -55,16 +55,16 @@ func NewAdapter(apiKey, model string, opts ...Option) *Adapter {
 	}
 }
 
-// Name implements core.NamedProvider.
+// Name implements types.NamedProvider.
 func (a *Adapter) Name() string { return "openai" }
 
-// ChatStream implements core.Provider.
-func (a *Adapter) ChatStream(ctx context.Context, messages []core.Message, tools []core.ToolDef) (<-chan core.Delta, error) {
+// ChatStream implements types.Provider.
+func (a *Adapter) ChatStream(ctx context.Context, messages []types.Message, tools []types.ToolDef) (<-chan types.Delta, error) {
 	return a.chatStream(ctx, messages, tools, nil)
 }
 
-// ChatStreamWithSchema implements core.StructuredOutputProvider.
-func (a *Adapter) ChatStreamWithSchema(ctx context.Context, messages []core.Message, tools []core.ToolDef, schema *core.ParameterSchema) (<-chan core.Delta, error) {
+// ChatStreamWithSchema implements types.StructuredOutputProvider.
+func (a *Adapter) ChatStreamWithSchema(ctx context.Context, messages []types.Message, tools []types.ToolDef, schema *types.ParameterSchema) (<-chan types.Delta, error) {
 	var rf *openai.ChatCompletionNewParamsResponseFormatUnion
 	if schema != nil {
 		schemaMap := parameterSchemaToMap(*schema)
@@ -81,20 +81,20 @@ func (a *Adapter) ChatStreamWithSchema(ctx context.Context, messages []core.Mess
 	return a.chatStream(ctx, messages, tools, rf)
 }
 
-// ContentSupport implements core.ContentNegotiator.
-func (a *Adapter) ContentSupport() core.ContentSupport {
-	return core.ContentSupport{
-		NativeTypes: map[core.MediaType]bool{
-			core.MediaJPEG: true,
-			core.MediaPNG:  true,
-			core.MediaGIF:  true,
-			core.MediaWebP: true,
-			core.MediaPDF:  true,
+// ContentSupport implements types.ContentNegotiator.
+func (a *Adapter) ContentSupport() types.ContentSupport {
+	return types.ContentSupport{
+		NativeTypes: map[types.MediaType]bool{
+			types.MediaJPEG: true,
+			types.MediaPNG:  true,
+			types.MediaGIF:  true,
+			types.MediaWebP: true,
+			types.MediaPDF:  true,
 		},
 	}
 }
 
-func (a *Adapter) chatStream(ctx context.Context, messages []core.Message, tools []core.ToolDef, rf *openai.ChatCompletionNewParamsResponseFormatUnion) (<-chan core.Delta, error) {
+func (a *Adapter) chatStream(ctx context.Context, messages []types.Message, tools []types.ToolDef, rf *openai.ChatCompletionNewParamsResponseFormatUnion) (<-chan types.Delta, error) {
 	params := openai.ChatCompletionNewParams{
 		Model:    a.model,
 		Messages: toOpenAIMessages(messages),
@@ -113,7 +113,7 @@ func (a *Adapter) chatStream(ctx context.Context, messages []core.Message, tools
 
 	stream := a.client.Chat.Completions.NewStreaming(ctx, params)
 
-	out := make(chan core.Delta, 64)
+	out := make(chan types.Delta, 64)
 	go func() {
 		defer close(out)
 
@@ -126,7 +126,7 @@ func (a *Adapter) chatStream(ctx context.Context, messages []core.Message, tools
 			acc.AddChunk(chunk)
 
 			if chunk.Usage.TotalTokens > 0 {
-				out <- core.UsageDelta{
+				out <- types.UsageDelta{
 					PromptTokens:     int(chunk.Usage.PromptTokens),
 					CompletionTokens: int(chunk.Usage.CompletionTokens),
 					TotalTokens:      int(chunk.Usage.TotalTokens),
@@ -142,26 +142,26 @@ func (a *Adapter) chatStream(ctx context.Context, messages []core.Message, tools
 
 			if delta.Content != "" {
 				if !textStarted {
-					out <- core.TextStartDelta{}
+					out <- types.TextStartDelta{}
 					textStarted = true
 				}
-				out <- core.TextContentDelta{Content: delta.Content}
+				out <- types.TextContentDelta{Content: delta.Content}
 			}
 
 			for _, tc := range delta.ToolCalls {
 				idx := tc.Index
 				if !startedToolCalls[idx] {
 					if textStarted {
-						out <- core.TextEndDelta{}
+						out <- types.TextEndDelta{}
 						textStarted = false
 					}
 					if tc.ID != "" {
 						startedToolCalls[idx] = true
-						out <- core.ToolCallStartDelta{ID: tc.ID, Name: tc.Function.Name}
+						out <- types.ToolCallStartDelta{ID: tc.ID, Name: tc.Function.Name}
 					}
 				}
 				if tc.Function.Arguments != "" {
-					out <- core.ToolCallArgumentDelta{Content: tc.Function.Arguments}
+					out <- types.ToolCallArgumentDelta{Content: tc.Function.Arguments}
 				}
 			}
 
@@ -172,23 +172,23 @@ func (a *Adapter) chatStream(ctx context.Context, messages []core.Message, tools
 				if finishedTC.Arguments != "" {
 					_ = json.Unmarshal([]byte(finishedTC.Arguments), &args)
 				}
-				out <- core.ToolCallEndDelta{Arguments: args}
+				out <- types.ToolCallEndDelta{Arguments: args}
 			}
 
 			if _, ok := acc.JustFinishedContent(); ok {
 				if textStarted {
-					out <- core.TextEndDelta{}
+					out <- types.TextEndDelta{}
 					textStarted = false
 				}
 			}
 		}
 
 		if err := stream.Err(); err != nil {
-			out <- core.ErrorDelta{Error: classifyOpenAIError(err)}
+			out <- types.ErrorDelta{Error: classifyOpenAIError(err)}
 		}
 
 		if textStarted {
-			out <- core.TextEndDelta{}
+			out <- types.TextEndDelta{}
 		}
 	}()
 
@@ -197,18 +197,18 @@ func (a *Adapter) chatStream(ctx context.Context, messages []core.Message, tools
 
 // ── Conversion helpers ──────────────────────────────────────────────
 
-func toOpenAIMessages(msgs []core.Message) []openai.ChatCompletionMessageParamUnion {
+func toOpenAIMessages(msgs []types.Message) []openai.ChatCompletionMessageParamUnion {
 	out := make([]openai.ChatCompletionMessageParamUnion, 0, len(msgs))
 	for _, m := range msgs {
 		switch v := m.(type) {
-		case core.SystemMessage:
+		case types.SystemMessage:
 			var textParts []string
-			var toolResults []core.ToolResultContent
+			var toolResults []types.ToolResultContent
 			for _, c := range v.Content {
 				switch bc := c.(type) {
-				case core.TextContent:
+				case types.TextContent:
 					textParts = append(textParts, bc.Text)
-				case core.ToolResultContent:
+				case types.ToolResultContent:
 					toolResults = append(toolResults, bc)
 				}
 			}
@@ -219,16 +219,16 @@ func toOpenAIMessages(msgs []core.Message) []openai.ChatCompletionMessageParamUn
 				out = append(out, openai.ToolMessage(tr.Text, tr.ToolCallID))
 			}
 
-		case core.UserMessage:
+		case types.UserMessage:
 			var parts []openai.ChatCompletionContentPartUnionParam
-			var toolResults []core.ToolResultContent
+			var toolResults []types.ToolResultContent
 			for _, c := range v.Content {
 				switch bc := c.(type) {
-				case core.TextContent:
+				case types.TextContent:
 					parts = append(parts, openai.TextContentPart(bc.Text))
-				case core.ToolResultContent:
+				case types.ToolResultContent:
 					toolResults = append(toolResults, bc)
-				case core.FileContent:
+				case types.FileContent:
 					parts = append(parts, fileContentToPart(bc))
 				}
 			}
@@ -245,14 +245,14 @@ func toOpenAIMessages(msgs []core.Message) []openai.ChatCompletionMessageParamUn
 				out = append(out, openai.ToolMessage(tr.Text, tr.ToolCallID))
 			}
 
-		case core.AssistantMessage:
+		case types.AssistantMessage:
 			var textParts []string
 			var toolCalls []openai.ChatCompletionMessageToolCallUnionParam
 			for _, c := range v.Content {
 				switch bc := c.(type) {
-				case core.TextContent:
+				case types.TextContent:
 					textParts = append(textParts, bc.Text)
-				case core.ToolUseContent:
+				case types.ToolUseContent:
 					argsJSON, _ := json.Marshal(bc.Arguments)
 					toolCalls = append(toolCalls, openai.ChatCompletionMessageToolCallUnionParam{
 						OfFunction: &openai.ChatCompletionMessageFunctionToolCallParam{
@@ -275,7 +275,7 @@ func toOpenAIMessages(msgs []core.Message) []openai.ChatCompletionMessageParamUn
 	return out
 }
 
-func fileContentToPart(fc core.FileContent) openai.ChatCompletionContentPartUnionParam {
+func fileContentToPart(fc types.FileContent) openai.ChatCompletionContentPartUnionParam {
 	if fc.Data != nil && isImageType(fc.MediaType) {
 		dataURI := fmt.Sprintf("data:%s;base64,%s", fc.MediaType, base64.StdEncoding.EncodeToString(fc.Data))
 		return openai.ImageContentPart(openai.ChatCompletionContentPartImageImageURLParam{
@@ -294,15 +294,15 @@ func fileContentToPart(fc core.FileContent) openai.ChatCompletionContentPartUnio
 	return openai.TextContentPart(desc)
 }
 
-func isImageType(mt core.MediaType) bool {
+func isImageType(mt types.MediaType) bool {
 	switch mt {
-	case core.MediaJPEG, core.MediaPNG, core.MediaGIF, core.MediaWebP:
+	case types.MediaJPEG, types.MediaPNG, types.MediaGIF, types.MediaWebP:
 		return true
 	}
 	return false
 }
 
-func toOpenAITools(defs []core.ToolDef) []openai.ChatCompletionToolUnionParam {
+func toOpenAITools(defs []types.ToolDef) []openai.ChatCompletionToolUnionParam {
 	if len(defs) == 0 {
 		return nil
 	}
@@ -317,7 +317,7 @@ func toOpenAITools(defs []core.ToolDef) []openai.ChatCompletionToolUnionParam {
 	return out
 }
 
-func parameterSchemaToMap(ps core.ParameterSchema) map[string]any {
+func parameterSchemaToMap(ps types.ParameterSchema) map[string]any {
 	schema := map[string]any{"type": ps.Type}
 	if len(ps.Required) > 0 {
 		schema["required"] = ps.Required
@@ -332,7 +332,7 @@ func parameterSchemaToMap(ps core.ParameterSchema) map[string]any {
 	return schema
 }
 
-func propertyToSchema(p core.PropertyDef) map[string]any {
+func propertyToSchema(p types.PropertyDef) map[string]any {
 	m := map[string]any{"type": p.Type}
 	if p.Description != "" {
 		m["description"] = p.Description
@@ -362,16 +362,16 @@ func propertyToSchema(p core.PropertyDef) map[string]any {
 func classifyOpenAIError(err error) error {
 	var apiErr *openai.Error
 	if errors.As(err, &apiErr) {
-		return &core.ProviderError{
+		return &types.ProviderError{
 			Provider: "openai",
-			Kind:     core.ClassifyHTTPStatus(apiErr.StatusCode),
+			Kind:     types.ClassifyHTTPStatus(apiErr.StatusCode),
 			Code:     apiErr.StatusCode,
 			Err:      err,
 		}
 	}
-	return &core.ProviderError{
+	return &types.ProviderError{
 		Provider: "openai",
-		Kind:     core.ErrorKindPermanent,
+		Kind:     types.ErrorKindPermanent,
 		Err:      err,
 	}
 }

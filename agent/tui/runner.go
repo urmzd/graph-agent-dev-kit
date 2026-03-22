@@ -14,7 +14,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	agentsdk "github.com/urmzd/saige/agent"
-	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/types"
 )
 
 // Runner is a multi-turn interactive TUI runner that implements agentsdk.Runner.
@@ -73,8 +73,8 @@ func (r *Runner) runVerbose(ctx context.Context, agent *agentsdk.Agent) error {
 			return nil
 		}
 
-		stream := agent.Invoke(ctx, []core.Message{
-			core.NewUserMessage(input),
+		stream := agent.Invoke(ctx, []types.Message{
+			types.NewUserMessage(input),
 		})
 
 		go r.resolveMarkersVerbose(ctx, stream, scanner, w)
@@ -126,7 +126,7 @@ const (
 type markerPending struct {
 	toolCallID string
 	toolName   string
-	markers    []core.Marker
+	markers    []types.Marker
 }
 
 type runnerModel struct {
@@ -138,7 +138,7 @@ type runnerModel struct {
 	spinner   spinner.Model
 	viewport  viewport.Model
 	stream    *agentsdk.EventStream
-	deltaCh   <-chan core.Delta
+	deltaCh   <-chan types.Delta
 	output    *strings.Builder // accumulated output for current turn
 	err       error
 	marker    *markerPending // pending marker, if any
@@ -258,8 +258,8 @@ func (m runnerModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.hasAgents = false
 			m.synthesizing = false
 
-			stream := m.agent.Invoke(m.ctx, []core.Message{
-				core.NewUserMessage(input),
+			stream := m.agent.Invoke(m.ctx, []types.Message{
+				types.NewUserMessage(input),
 			})
 			m.stream = stream
 			m.deltaCh = stream.Deltas()
@@ -278,15 +278,15 @@ func (m runnerModel) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m runnerModel) handleDelta(d core.Delta) (tea.Model, tea.Cmd) {
+func (m runnerModel) handleDelta(d types.Delta) (tea.Model, tea.Cmd) {
 	switch d := d.(type) {
-	case core.ToolCallStartDelta:
+	case types.ToolCallStartDelta:
 		m.log = append(m.log, activityEntry{
 			kind:     activityToolCall,
 			toolName: d.Name,
 		})
 
-	case core.ToolExecStartDelta:
+	case types.ToolExecStartDelta:
 		m.hasAgents = true
 		m.log = append(m.log, activityEntry{
 			kind:      activityAgentStart,
@@ -301,15 +301,15 @@ func (m runnerModel) handleDelta(d core.Delta) (tea.Model, tea.Cmd) {
 		})
 		m.toolCallIdx[d.ToolCallID] = idx
 
-	case core.ToolExecDelta:
+	case types.ToolExecDelta:
 		if idx, ok := m.toolCallIdx[d.ToolCallID]; ok {
 			entry := &m.log[idx]
-			if inner, ok := d.Inner.(core.TextContentDelta); ok {
+			if inner, ok := d.Inner.(types.TextContentDelta); ok {
 				entry.content.WriteString(inner.Content)
 			}
 		}
 
-	case core.ToolExecEndDelta:
+	case types.ToolExecEndDelta:
 		if idx, ok := m.toolCallIdx[d.ToolCallID]; ok {
 			entry := &m.log[idx]
 			if d.Error != "" {
@@ -326,7 +326,7 @@ func (m runnerModel) handleDelta(d core.Delta) (tea.Model, tea.Cmd) {
 			})
 		}
 
-	case core.ToolCallEndDelta:
+	case types.ToolCallEndDelta:
 		for i := len(m.log) - 1; i >= 0; i-- {
 			if m.log[i].kind == activityToolCall {
 				m.log = append(m.log, activityEntry{
@@ -337,7 +337,7 @@ func (m runnerModel) handleDelta(d core.Delta) (tea.Model, tea.Cmd) {
 			}
 		}
 
-	case core.MarkerDelta:
+	case types.MarkerDelta:
 		m.log = append(m.log, activityEntry{
 			kind:     activityMarker,
 			toolName: d.ToolName,
@@ -352,14 +352,14 @@ func (m runnerModel) handleDelta(d core.Delta) (tea.Model, tea.Cmd) {
 		m.textInput.Focus()
 		return m, textinput.Blink
 
-	case core.UsageDelta:
+	case types.UsageDelta:
 		usage := d
 		m.log = append(m.log, activityEntry{
 			kind:  activityUsage,
 			usage: &usage,
 		})
 
-	case core.TextContentDelta:
+	case types.TextContentDelta:
 		m.output.WriteString(d.Content)
 		if m.hasAgents {
 			m.synthesizing = true
@@ -375,11 +375,11 @@ func (m runnerModel) handleDelta(d core.Delta) (tea.Model, tea.Cmd) {
 			m.log = append(m.log, entry)
 		}
 
-	case core.ErrorDelta:
+	case types.ErrorDelta:
 		m.err = d.Error
 		return m, tea.Quit
 
-	case core.DoneDelta:
+	case types.DoneDelta:
 		return m.finishTurn()
 	}
 

@@ -5,7 +5,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/types"
 )
 
 // Config controls retry behavior.
@@ -30,12 +30,12 @@ func DefaultConfig() Config {
 
 // Provider wraps a Provider with retry logic and exponential backoff.
 type Provider struct {
-	Inner  core.Provider
+	Inner  types.Provider
 	Config Config
 }
 
 // New wraps a provider with the given retry config.
-func New(inner core.Provider, cfg Config) *Provider {
+func New(inner types.Provider, cfg Config) *Provider {
 	if cfg.MaxAttempts <= 0 {
 		cfg.MaxAttempts = 3
 	}
@@ -52,21 +52,21 @@ func New(inner core.Provider, cfg Config) *Provider {
 }
 
 func (r *Provider) Name() string {
-	return "retry(" + core.ProviderName(r.Inner) + ")"
+	return "retry(" + types.ProviderName(r.Inner) + ")"
 }
 
-func (r *Provider) ChatStream(ctx context.Context, messages []core.Message, tools []core.ToolDef) (<-chan core.Delta, error) {
-	return r.retryLoop(ctx, func() (<-chan core.Delta, error) {
+func (r *Provider) ChatStream(ctx context.Context, messages []types.Message, tools []types.ToolDef) (<-chan types.Delta, error) {
+	return r.retryLoop(ctx, func() (<-chan types.Delta, error) {
 		return r.Inner.ChatStream(ctx, messages, tools)
 	})
 }
 
-// ChatStreamWithSchema implements core.StructuredOutputProvider.
+// ChatStreamWithSchema implements types.StructuredOutputProvider.
 // If the inner provider supports structured output, retries use it.
 // Otherwise, falls back to ChatStream (schema is lost).
-func (r *Provider) ChatStreamWithSchema(ctx context.Context, messages []core.Message, tools []core.ToolDef, schema *core.ParameterSchema) (<-chan core.Delta, error) {
-	if sp, ok := r.Inner.(core.StructuredOutputProvider); ok {
-		return r.retryLoop(ctx, func() (<-chan core.Delta, error) {
+func (r *Provider) ChatStreamWithSchema(ctx context.Context, messages []types.Message, tools []types.ToolDef, schema *types.ParameterSchema) (<-chan types.Delta, error) {
+	if sp, ok := r.Inner.(types.StructuredOutputProvider); ok {
+		return r.retryLoop(ctx, func() (<-chan types.Delta, error) {
 			return sp.ChatStreamWithSchema(ctx, messages, tools, schema)
 		})
 	}
@@ -74,10 +74,10 @@ func (r *Provider) ChatStreamWithSchema(ctx context.Context, messages []core.Mes
 }
 
 // retryLoop runs the call function with exponential backoff.
-func (r *Provider) retryLoop(ctx context.Context, call func() (<-chan core.Delta, error)) (<-chan core.Delta, error) {
+func (r *Provider) retryLoop(ctx context.Context, call func() (<-chan types.Delta, error)) (<-chan types.Delta, error) {
 	shouldRetry := r.Config.ShouldRetry
 	if shouldRetry == nil {
-		shouldRetry = core.IsTransient
+		shouldRetry = types.IsTransient
 	}
 
 	var lastErr error
@@ -109,5 +109,5 @@ func (r *Provider) retryLoop(ctx context.Context, call func() (<-chan core.Delta
 		}
 	}
 
-	return nil, &core.RetryError{Attempts: r.Config.MaxAttempts, Last: lastErr}
+	return nil, &types.RetryError{Attempts: r.Config.MaxAttempts, Last: lastErr}
 }

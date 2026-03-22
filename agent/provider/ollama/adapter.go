@@ -5,19 +5,19 @@ import (
 	"encoding/base64"
 	"strings"
 
-	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/types"
 )
 
 // Compile-time interface checks.
 var (
-	_ core.StructuredOutputProvider = (*Adapter)(nil)
-	_ core.NamedProvider            = (*Adapter)(nil)
+	_ types.StructuredOutputProvider = (*Adapter)(nil)
+	_ types.NamedProvider            = (*Adapter)(nil)
 )
 
-// Name implements core.NamedProvider.
+// Name implements types.NamedProvider.
 func (a *Adapter) Name() string { return "ollama" }
 
-// Adapter wraps the Ollama Client and implements core.Provider.
+// Adapter wraps the Ollama Client and implements types.Provider.
 type Adapter struct {
 	Client *Client
 }
@@ -27,14 +27,14 @@ func NewAdapter(client *Client) *Adapter {
 	return &Adapter{Client: client}
 }
 
-// ChatStream implements core.Provider.
-func (a *Adapter) ChatStream(ctx context.Context, messages []core.Message, tools []core.ToolDef) (<-chan core.Delta, error) {
+// ChatStream implements types.Provider.
+func (a *Adapter) ChatStream(ctx context.Context, messages []types.Message, tools []types.ToolDef) (<-chan types.Delta, error) {
 	oMsgs := toOllamaMessages(messages)
 	oTools := toOllamaTools(tools)
 
 	rx, err := a.Client.ChatStream(ctx, oMsgs, oTools)
 	if err != nil {
-		return nil, &core.ProviderError{
+		return nil, &types.ProviderError{
 			Provider: "ollama",
 			Model:    a.Client.Model,
 			Kind:     classifyOllamaError(err),
@@ -45,8 +45,8 @@ func (a *Adapter) ChatStream(ctx context.Context, messages []core.Message, tools
 	return a.translateDeltas(rx), nil
 }
 
-// ChatStreamWithSchema implements core.StructuredOutputProvider.
-func (a *Adapter) ChatStreamWithSchema(ctx context.Context, messages []core.Message, tools []core.ToolDef, schema *core.ParameterSchema) (<-chan core.Delta, error) {
+// ChatStreamWithSchema implements types.StructuredOutputProvider.
+func (a *Adapter) ChatStreamWithSchema(ctx context.Context, messages []types.Message, tools []types.ToolDef, schema *types.ParameterSchema) (<-chan types.Delta, error) {
 	oMsgs := toOllamaMessages(messages)
 	oTools := toOllamaTools(tools)
 
@@ -57,7 +57,7 @@ func (a *Adapter) ChatStreamWithSchema(ctx context.Context, messages []core.Mess
 
 	rx, err := a.Client.ChatStreamWithFormat(ctx, oMsgs, oTools, format)
 	if err != nil {
-		return nil, &core.ProviderError{
+		return nil, &types.ProviderError{
 			Provider: "ollama",
 			Model:    a.Client.Model,
 			Kind:     classifyOllamaError(err),
@@ -68,9 +68,9 @@ func (a *Adapter) ChatStreamWithSchema(ctx context.Context, messages []core.Mess
 	return a.translateDeltas(rx), nil
 }
 
-// translateDeltas converts Ollama ChatChunk stream to core.Delta stream.
-func (a *Adapter) translateDeltas(rx <-chan ChatChunk) <-chan core.Delta {
-	out := make(chan core.Delta, 64)
+// translateDeltas converts Ollama ChatChunk stream to types.Delta stream.
+func (a *Adapter) translateDeltas(rx <-chan ChatChunk) <-chan types.Delta {
+	out := make(chan types.Delta, 64)
 	go func() {
 		defer close(out)
 
@@ -78,11 +78,11 @@ func (a *Adapter) translateDeltas(rx <-chan ChatChunk) <-chan core.Delta {
 		for chunk := range rx {
 			if chunk.Done {
 				if textStarted {
-					out <- core.TextEndDelta{}
+					out <- types.TextEndDelta{}
 					textStarted = false
 				}
 				// Emit usage delta from the final chunk.
-				out <- core.UsageDelta{
+				out <- types.UsageDelta{
 					PromptTokens:     chunk.PromptEvalCount,
 					CompletionTokens: chunk.EvalCount,
 					TotalTokens:      chunk.PromptEvalCount + chunk.EvalCount,
@@ -93,41 +93,41 @@ func (a *Adapter) translateDeltas(rx <-chan ChatChunk) <-chan core.Delta {
 			// Handle text content
 			if chunk.Message.Content != "" {
 				if !textStarted {
-					out <- core.TextStartDelta{}
+					out <- types.TextStartDelta{}
 					textStarted = true
 				}
-				out <- core.TextContentDelta{Content: chunk.Message.Content}
+				out <- types.TextContentDelta{Content: chunk.Message.Content}
 			}
 
 			// Handle tool calls
 			if len(chunk.Message.ToolCalls) > 0 {
 				if textStarted {
-					out <- core.TextEndDelta{}
+					out <- types.TextEndDelta{}
 					textStarted = false
 				}
 				for _, tc := range chunk.Message.ToolCalls {
-					id := core.NewID()
-					out <- core.ToolCallStartDelta{ID: id, Name: tc.Function.Name}
-					out <- core.ToolCallEndDelta{Arguments: tc.Function.Arguments}
+					id := types.NewID()
+					out <- types.ToolCallStartDelta{ID: id, Name: tc.Function.Name}
+					out <- types.ToolCallEndDelta{Arguments: tc.Function.Arguments}
 				}
 			}
 		}
 
 		if textStarted {
-			out <- core.TextEndDelta{}
+			out <- types.TextEndDelta{}
 		}
 	}()
 
 	return out
 }
 
-// ContentSupport implements core.ContentNegotiator.
+// ContentSupport implements types.ContentNegotiator.
 // Ollama supports JPEG and PNG natively via the images field.
-func (a *Adapter) ContentSupport() core.ContentSupport {
-	return core.ContentSupport{
-		NativeTypes: map[core.MediaType]bool{
-			core.MediaJPEG: true,
-			core.MediaPNG:  true,
+func (a *Adapter) ContentSupport() types.ContentSupport {
+	return types.ContentSupport{
+		NativeTypes: map[types.MediaType]bool{
+			types.MediaJPEG: true,
+			types.MediaPNG:  true,
 		},
 	}
 }
@@ -156,19 +156,19 @@ func (a *Adapter) Embed(ctx context.Context, text string) ([]float32, error) {
 
 // ── Conversion helpers ──────────────────────────────────────────────
 
-func toOllamaMessages(msgs []core.Message) []ChatMessage {
+func toOllamaMessages(msgs []types.Message) []ChatMessage {
 	out := make([]ChatMessage, 0, len(msgs))
 	for _, m := range msgs {
 		switch v := m.(type) {
-		case core.SystemMessage:
+		case types.SystemMessage:
 			// Split: text goes to system role, tool results go to tool role.
 			var textParts []string
-			var toolResults []core.ToolResultContent
+			var toolResults []types.ToolResultContent
 			for _, c := range v.Content {
 				switch bc := c.(type) {
-				case core.TextContent:
+				case types.TextContent:
 					textParts = append(textParts, bc.Text)
-				case core.ToolResultContent:
+				case types.ToolResultContent:
 					toolResults = append(toolResults, bc)
 				}
 			}
@@ -178,18 +178,18 @@ func toOllamaMessages(msgs []core.Message) []ChatMessage {
 			for _, tr := range toolResults {
 				out = append(out, ChatMessage{Role: "tool", Content: tr.Text})
 			}
-		case core.UserMessage:
+		case types.UserMessage:
 			// Split: text goes to user role, tool results go to tool role.
 			var textParts []string
 			var images []string
-			var toolResults []core.ToolResultContent
+			var toolResults []types.ToolResultContent
 			for _, c := range v.Content {
 				switch bc := c.(type) {
-				case core.TextContent:
+				case types.TextContent:
 					textParts = append(textParts, bc.Text)
-				case core.ToolResultContent:
+				case types.ToolResultContent:
 					toolResults = append(toolResults, bc)
-				case core.FileContent:
+				case types.FileContent:
 					if bc.Data != nil {
 						images = append(images, base64.StdEncoding.EncodeToString(bc.Data))
 					}
@@ -205,13 +205,13 @@ func toOllamaMessages(msgs []core.Message) []ChatMessage {
 			for _, tr := range toolResults {
 				out = append(out, ChatMessage{Role: "tool", Content: tr.Text})
 			}
-		case core.AssistantMessage:
+		case types.AssistantMessage:
 			msg := ChatMessage{Role: "assistant"}
 			for _, c := range v.Content {
 				switch bc := c.(type) {
-				case core.TextContent:
+				case types.TextContent:
 					msg.Content += bc.Text
-				case core.ToolUseContent:
+				case types.ToolUseContent:
 					msg.ToolCalls = append(msg.ToolCalls, ToolCall{
 						Function: ToolCallFunction{
 							Name:      bc.Name,
@@ -226,7 +226,7 @@ func toOllamaMessages(msgs []core.Message) []ChatMessage {
 	return out
 }
 
-func toOllamaTools(defs []core.ToolDef) []Tool {
+func toOllamaTools(defs []types.ToolDef) []Tool {
 	out := make([]Tool, len(defs))
 	for i, d := range defs {
 		props := make(map[string]ToolProperty, len(d.Parameters.Properties))
@@ -249,8 +249,8 @@ func toOllamaTools(defs []core.ToolDef) []Tool {
 	return out
 }
 
-// convertProperty recursively converts a core.PropertyDef to an Ollama ToolProperty.
-func convertProperty(p core.PropertyDef) ToolProperty {
+// convertProperty recursively converts a types.PropertyDef to an Ollama ToolProperty.
+func convertProperty(p types.PropertyDef) ToolProperty {
 	tp := ToolProperty{
 		Type:        p.Type,
 		Description: p.Description,
@@ -272,7 +272,7 @@ func convertProperty(p core.PropertyDef) ToolProperty {
 }
 
 // parameterSchemaToMap converts a ParameterSchema to a map for the Ollama format field.
-func parameterSchemaToMap(ps core.ParameterSchema) map[string]any {
+func parameterSchemaToMap(ps types.ParameterSchema) map[string]any {
 	schema := map[string]any{"type": ps.Type}
 	if len(ps.Required) > 0 {
 		schema["required"] = ps.Required
@@ -287,7 +287,7 @@ func parameterSchemaToMap(ps core.ParameterSchema) map[string]any {
 	return schema
 }
 
-func propertyDefToMap(p core.PropertyDef) map[string]any {
+func propertyDefToMap(p types.PropertyDef) map[string]any {
 	m := map[string]any{"type": p.Type}
 	if p.Description != "" {
 		m["description"] = p.Description
@@ -315,13 +315,13 @@ func propertyDefToMap(p core.PropertyDef) map[string]any {
 }
 
 // classifyOllamaError inspects the error to determine if it's transient.
-func classifyOllamaError(err error) core.ErrorKind {
+func classifyOllamaError(err error) types.ErrorKind {
 	s := err.Error()
 	if strings.Contains(s, "connection refused") ||
 		strings.Contains(s, "timeout") ||
 		strings.Contains(s, "returned 5") ||
 		strings.Contains(s, "returned 429") {
-		return core.ErrorKindTransient
+		return types.ErrorKindTransient
 	}
-	return core.ErrorKindPermanent
+	return types.ErrorKindPermanent
 }

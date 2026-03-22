@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/types"
 )
 
 // serializedTree is the JSON wire format for a Tree.
@@ -53,11 +53,11 @@ type messageEnvelope struct {
 	Content []contentEnvelope `json:"content"`
 }
 
-func marshalMessage(msg core.Message) (json.RawMessage, error) {
+func marshalMessage(msg types.Message) (json.RawMessage, error) {
 	var env messageEnvelope
 
 	switch m := msg.(type) {
-	case core.SystemMessage:
+	case types.SystemMessage:
 		for _, c := range m.Content {
 			data, err := json.Marshal(c)
 			if err != nil {
@@ -66,7 +66,7 @@ func marshalMessage(msg core.Message) (json.RawMessage, error) {
 			typeName := systemContentType(c)
 			env.Content = append(env.Content, contentEnvelope{Type: typeName, Data: data})
 		}
-	case core.UserMessage:
+	case types.UserMessage:
 		for _, c := range m.Content {
 			data, err := json.Marshal(c)
 			if err != nil {
@@ -75,7 +75,7 @@ func marshalMessage(msg core.Message) (json.RawMessage, error) {
 			typeName := userContentType(c)
 			env.Content = append(env.Content, contentEnvelope{Type: typeName, Data: data})
 		}
-	case core.AssistantMessage:
+	case types.AssistantMessage:
 		for _, c := range m.Content {
 			data, err := json.Marshal(c)
 			if err != nil {
@@ -89,15 +89,15 @@ func marshalMessage(msg core.Message) (json.RawMessage, error) {
 	return json.Marshal(env)
 }
 
-func unmarshalMessage(role core.Role, data json.RawMessage) (core.Message, error) {
+func unmarshalMessage(role types.Role, data json.RawMessage) (types.Message, error) {
 	var env messageEnvelope
 	if err := json.Unmarshal(data, &env); err != nil {
 		return nil, err
 	}
 
 	switch role {
-	case core.RoleSystem:
-		var content []core.SystemContent
+	case types.RoleSystem:
+		var content []types.SystemContent
 		for _, ce := range env.Content {
 			c, err := unmarshalSystemContent(ce)
 			if err != nil {
@@ -105,10 +105,10 @@ func unmarshalMessage(role core.Role, data json.RawMessage) (core.Message, error
 			}
 			content = append(content, c)
 		}
-		return core.SystemMessage{Content: content}, nil
+		return types.SystemMessage{Content: content}, nil
 
-	case core.RoleUser:
-		var content []core.UserContent
+	case types.RoleUser:
+		var content []types.UserContent
 		for _, ce := range env.Content {
 			c, err := unmarshalUserContent(ce)
 			if err != nil {
@@ -116,10 +116,10 @@ func unmarshalMessage(role core.Role, data json.RawMessage) (core.Message, error
 			}
 			content = append(content, c)
 		}
-		return core.UserMessage{Content: content}, nil
+		return types.UserMessage{Content: content}, nil
 
-	case core.RoleAssistant:
-		var content []core.AssistantContent
+	case types.RoleAssistant:
+		var content []types.AssistantContent
 		for _, ce := range env.Content {
 			c, err := unmarshalAssistantContent(ce)
 			if err != nil {
@@ -127,99 +127,99 @@ func unmarshalMessage(role core.Role, data json.RawMessage) (core.Message, error
 			}
 			content = append(content, c)
 		}
-		return core.AssistantMessage{Content: content}, nil
+		return types.AssistantMessage{Content: content}, nil
 
 	default:
 		return nil, fmt.Errorf("unknown role: %s", role)
 	}
 }
 
-func systemContentType(c core.SystemContent) string {
+func systemContentType(c types.SystemContent) string {
 	switch c.(type) {
-	case core.TextContent:
+	case types.TextContent:
 		return "text"
-	case core.ToolResultContent:
+	case types.ToolResultContent:
 		return "tool_result"
-	case core.ConfigContent:
+	case types.ConfigContent:
 		return "config"
 	default:
 		return "unknown"
 	}
 }
 
-func userContentType(c core.UserContent) string {
+func userContentType(c types.UserContent) string {
 	switch c.(type) {
-	case core.TextContent:
+	case types.TextContent:
 		return "text"
-	case core.ToolResultContent:
+	case types.ToolResultContent:
 		return "tool_result"
-	case core.ConfigContent:
+	case types.ConfigContent:
 		return "config"
-	case core.FileContent:
+	case types.FileContent:
 		return "file"
-	case core.FeedbackContent:
+	case types.FeedbackContent:
 		return "feedback"
 	default:
 		return "unknown"
 	}
 }
 
-func assistantContentType(c core.AssistantContent) string {
+func assistantContentType(c types.AssistantContent) string {
 	switch c.(type) {
-	case core.TextContent:
+	case types.TextContent:
 		return "text"
-	case core.ToolUseContent:
+	case types.ToolUseContent:
 		return "tool_use"
 	default:
 		return "unknown"
 	}
 }
 
-func unmarshalSystemContent(ce contentEnvelope) (core.SystemContent, error) {
+func unmarshalSystemContent(ce contentEnvelope) (types.SystemContent, error) {
 	switch ce.Type {
 	case "text":
-		var c core.TextContent
+		var c types.TextContent
 		return c, json.Unmarshal(ce.Data, &c)
 	case "tool_result":
-		var c core.ToolResultContent
+		var c types.ToolResultContent
 		return c, json.Unmarshal(ce.Data, &c)
 	case "config":
-		var c core.ConfigContent
+		var c types.ConfigContent
 		return c, json.Unmarshal(ce.Data, &c)
 	default:
 		return nil, fmt.Errorf("unknown system content type: %s", ce.Type)
 	}
 }
 
-func unmarshalUserContent(ce contentEnvelope) (core.UserContent, error) {
+func unmarshalUserContent(ce contentEnvelope) (types.UserContent, error) {
 	switch ce.Type {
 	case "text":
-		var c core.TextContent
+		var c types.TextContent
 		return c, json.Unmarshal(ce.Data, &c)
 	case "tool_result":
-		var c core.ToolResultContent
+		var c types.ToolResultContent
 		return c, json.Unmarshal(ce.Data, &c)
 	case "config":
-		var c core.ConfigContent
+		var c types.ConfigContent
 		return c, json.Unmarshal(ce.Data, &c)
 	case "file":
-		var c core.FileContent
+		var c types.FileContent
 		return c, json.Unmarshal(ce.Data, &c)
 	case "feedback":
-		var c core.FeedbackContent
+		var c types.FeedbackContent
 		return c, json.Unmarshal(ce.Data, &c)
 	default:
 		return nil, fmt.Errorf("unknown user content type: %s", ce.Type)
 	}
 }
 
-func unmarshalAssistantContent(ce contentEnvelope) (core.AssistantContent, error) {
+func unmarshalAssistantContent(ce contentEnvelope) (types.AssistantContent, error) {
 	switch ce.Type {
 	case "text":
-		var c core.TextContent
+		var c types.TextContent
 		return c, json.Unmarshal(ce.Data, &c)
 	case "tool_use":
-		var c core.ToolUseContent
+		var c types.ToolUseContent
 		return c, json.Unmarshal(ce.Data, &c)
 	default:
 		return nil, fmt.Errorf("unknown assistant content type: %s", ce.Type)
@@ -301,32 +301,32 @@ func (t *Tree) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	t.nodes = make(map[core.NodeID]*core.Node, len(st.Nodes))
-	t.children = make(map[core.NodeID][]core.NodeID, len(st.Children))
-	t.branches = make(map[core.BranchID]core.NodeID, len(st.Branches))
-	t.checkpoints = make(map[core.CheckpointID]core.Checkpoint)
-	t.rootID = core.NodeID(st.RootID)
-	t.active = core.BranchID(st.Active)
+	t.nodes = make(map[types.NodeID]*types.Node, len(st.Nodes))
+	t.children = make(map[types.NodeID][]types.NodeID, len(st.Children))
+	t.branches = make(map[types.BranchID]types.NodeID, len(st.Branches))
+	t.checkpoints = make(map[types.CheckpointID]types.Checkpoint)
+	t.rootID = types.NodeID(st.RootID)
+	t.active = types.BranchID(st.Active)
 
 	for _, sn := range st.Nodes {
-		msg, err := unmarshalMessage(core.Role(sn.Role), sn.Message)
+		msg, err := unmarshalMessage(types.Role(sn.Role), sn.Message)
 		if err != nil {
 			return fmt.Errorf("node %s: %w", sn.ID, err)
 		}
 
-		summaryOf := make([]core.NodeID, len(sn.SummaryOf))
+		summaryOf := make([]types.NodeID, len(sn.SummaryOf))
 		for i, s := range sn.SummaryOf {
-			summaryOf[i] = core.NodeID(s)
+			summaryOf[i] = types.NodeID(s)
 		}
 
-		t.nodes[core.NodeID(sn.ID)] = &core.Node{
-			ID:         core.NodeID(sn.ID),
-			ParentID:   core.NodeID(sn.ParentID),
+		t.nodes[types.NodeID(sn.ID)] = &types.Node{
+			ID:         types.NodeID(sn.ID),
+			ParentID:   types.NodeID(sn.ParentID),
 			Message:    msg,
-			State:      core.NodeState(sn.State),
+			State:      types.NodeState(sn.State),
 			Version:    sn.Version,
 			Depth:      sn.Depth,
-			BranchID:   core.BranchID(sn.BranchID),
+			BranchID:   types.BranchID(sn.BranchID),
 			CreatedAt:  sn.CreatedAt,
 			UpdatedAt:  sn.UpdatedAt,
 			ArchivedAt: sn.ArchivedAt,
@@ -336,23 +336,23 @@ func (t *Tree) UnmarshalJSON(data []byte) error {
 	}
 
 	for parentStr, childStrs := range st.Children {
-		kids := make([]core.NodeID, len(childStrs))
+		kids := make([]types.NodeID, len(childStrs))
 		for i, c := range childStrs {
-			kids[i] = core.NodeID(c)
+			kids[i] = types.NodeID(c)
 		}
-		t.children[core.NodeID(parentStr)] = kids
+		t.children[types.NodeID(parentStr)] = kids
 	}
 
 	for bStr, nStr := range st.Branches {
-		t.branches[core.BranchID(bStr)] = core.NodeID(nStr)
+		t.branches[types.BranchID(bStr)] = types.NodeID(nStr)
 	}
 
 	for _, scp := range st.Checkpoints {
-		cpID := core.CheckpointID(scp.ID)
-		t.checkpoints[cpID] = core.Checkpoint{
+		cpID := types.CheckpointID(scp.ID)
+		t.checkpoints[cpID] = types.Checkpoint{
 			ID:        cpID,
-			Branch:    core.BranchID(scp.Branch),
-			NodeID:    core.NodeID(scp.NodeID),
+			Branch:    types.BranchID(scp.Branch),
+			NodeID:    types.NodeID(scp.NodeID),
 			Name:      scp.Name,
 			CreatedAt: scp.CreatedAt,
 		}

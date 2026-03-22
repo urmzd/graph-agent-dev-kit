@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/types"
 	"github.com/urmzd/saige/agent/tree"
 )
 
@@ -16,32 +16,32 @@ import (
 type AgentConfig struct {
 	Name         string
 	SystemPrompt string
-	Provider     core.Provider
-	Tools        *core.ToolRegistry
-	CompactCfg   *core.CompactConfig // initial compaction config (replaces Compactor)
+	Provider     types.Provider
+	Tools        *types.ToolRegistry
+	CompactCfg   *types.CompactConfig // initial compaction config (replaces Compactor)
 	MaxIter      int
 	SubAgents    []SubAgentDef
 	Tree         *tree.Tree // optional; auto-created if nil
 
 	// File pipeline configuration.
-	Resolvers  map[string]core.Resolver            // URI scheme → Resolver (e.g. "file", "https", "s3")
-	Extractors map[core.MediaType]core.Extractor    // MediaType → Extractor for non-native types
+	Resolvers  map[string]types.Resolver            // URI scheme → Resolver (e.g. "file", "https", "s3")
+	Extractors map[types.MediaType]types.Extractor    // MediaType → Extractor for non-native types
 
 	// Structured output: if set, constrains final LLM output to this JSON schema.
-	ResponseSchema *core.ParameterSchema
+	ResponseSchema *types.ParameterSchema
 
 	// Logger for agent events. Defaults to slog.Default() if nil.
 	Logger *slog.Logger
 
 	// Metrics collector. Defaults to NoopMetrics if nil.
-	Metrics core.Metrics
+	Metrics types.Metrics
 }
 
 // Agent runs an LLM agent loop with tool execution.
 // All conversations are backed by a Tree.
 type Agent struct {
 	cfg   AgentConfig
-	tools *core.ToolRegistry
+	tools *types.ToolRegistry
 }
 
 // NewAgent creates a new Agent. If no Tree is provided, one is created
@@ -55,15 +55,15 @@ func NewAgent(cfg AgentConfig) *Agent {
 		cfg.Logger = slog.Default()
 	}
 	if cfg.Metrics == nil {
-		cfg.Metrics = core.NoopMetrics{}
+		cfg.Metrics = types.NoopMetrics{}
 	}
 	tools := cfg.Tools
 	if tools == nil {
-		tools = core.NewToolRegistry()
+		tools = types.NewToolRegistry()
 	}
 
 	if cfg.Tree == nil {
-		t, _ := tree.New(core.NewSystemMessage(cfg.SystemPrompt))
+		t, _ := tree.New(types.NewSystemMessage(cfg.SystemPrompt))
 		cfg.Tree = t
 	}
 
@@ -75,15 +75,15 @@ func NewAgent(cfg AgentConfig) *Agent {
 	return &Agent{cfg: cfg, tools: tools}
 }
 
-func registerSubAgent(registry *core.ToolRegistry, sa SubAgentDef) {
+func registerSubAgent(registry *types.ToolRegistry, sa SubAgentDef) {
 	registry.Register(&subAgentTool{
-		def: core.ToolDef{
+		def: types.ToolDef{
 			Name:        "delegate_to_" + sa.Name,
 			Description: sa.Description,
-			Parameters: core.ParameterSchema{
+			Parameters: types.ParameterSchema{
 				Type:     "object",
 				Required: []string{"task"},
-				Properties: map[string]core.PropertyDef{
+				Properties: map[string]types.PropertyDef{
 					"task": {Type: "string", Description: "The task to delegate"},
 				},
 			},
@@ -113,7 +113,7 @@ type AgentInfo struct {
 func (a *Agent) Info() AgentInfo {
 	info := AgentInfo{Name: a.cfg.Name}
 
-	if np, ok := a.cfg.Provider.(core.NamedProvider); ok {
+	if np, ok := a.cfg.Provider.(types.NamedProvider); ok {
 		info.Provider = np.Name()
 	}
 
@@ -140,9 +140,9 @@ func (a *Agent) Tree() *tree.Tree {
 // tree. The feedback is attached as a permanent leaf branching off the target
 // node — it lives on its own dead-end branch, is never flattened into LLM
 // messages, and cannot have children.
-func (a *Agent) Feedback(targetNodeID core.NodeID, rating core.Rating, comment string) (*core.Node, error) {
-	msg := core.UserMessage{Content: []core.UserContent{
-		core.FeedbackContent{
+func (a *Agent) Feedback(targetNodeID types.NodeID, rating types.Rating, comment string) (*types.Node, error) {
+	msg := types.UserMessage{Content: []types.UserContent{
+		types.FeedbackContent{
 			TargetNodeID: string(targetNodeID),
 			Rating:       rating,
 			Comment:      comment,
@@ -154,9 +154,9 @@ func (a *Agent) Feedback(targetNodeID core.NodeID, rating core.Rating, comment s
 
 // FeedbackEntry is a single piece of feedback extracted from the tree.
 type FeedbackEntry struct {
-	NodeID       core.NodeID // the feedback node itself
-	TargetNodeID core.NodeID // the node being rated
-	Rating       core.Rating
+	NodeID       types.NodeID // the feedback node itself
+	TargetNodeID types.NodeID // the node being rated
+	Rating       types.Rating
 	Comment      string
 }
 
@@ -166,15 +166,15 @@ func (a *Agent) FeedbackSummary() []FeedbackEntry {
 
 	var entries []FeedbackEntry
 	for _, n := range nodes {
-		um, ok := n.Message.(core.UserMessage)
+		um, ok := n.Message.(types.UserMessage)
 		if !ok {
 			continue
 		}
 		for _, c := range um.Content {
-			if fb, ok := c.(core.FeedbackContent); ok {
+			if fb, ok := c.(types.FeedbackContent); ok {
 				entries = append(entries, FeedbackEntry{
 					NodeID:       n.ID,
-					TargetNodeID: core.NodeID(fb.TargetNodeID),
+					TargetNodeID: types.NodeID(fb.TargetNodeID),
 					Rating:       fb.Rating,
 					Comment:      fb.Comment,
 				})
@@ -186,7 +186,7 @@ func (a *Agent) FeedbackSummary() []FeedbackEntry {
 
 // Invoke starts the agent loop on the active branch and returns a stream of deltas.
 // Input messages are appended as child nodes and all responses are persisted to the tree.
-func (a *Agent) Invoke(ctx context.Context, input []core.Message, branch ...core.BranchID) *EventStream {
+func (a *Agent) Invoke(ctx context.Context, input []types.Message, branch ...types.BranchID) *EventStream {
 	b := a.cfg.Tree.Active()
 	if len(branch) > 0 {
 		b = branch[0]
@@ -207,13 +207,13 @@ func (a *Agent) Invoke(ctx context.Context, input []core.Message, branch ...core
 type resolvedConfig struct {
 	model      string
 	maxIter    int
-	compactor  core.Compactor
+	compactor  types.Compactor
 	compactNow bool
 }
 
 // resolveConfig walks messages and merges ConfigContent blocks (last write wins per field).
 // Starts from AgentConfig defaults; ConfigContent in the tree overrides them.
-func (a *Agent) resolveConfig(messages []core.Message) resolvedConfig {
+func (a *Agent) resolveConfig(messages []types.Message) resolvedConfig {
 	rc := resolvedConfig{maxIter: a.cfg.MaxIter}
 	if a.cfg.CompactCfg != nil {
 		rc.compactor = a.cfg.CompactCfg.ToCompactor()
@@ -221,15 +221,15 @@ func (a *Agent) resolveConfig(messages []core.Message) resolvedConfig {
 
 	for _, msg := range messages {
 		switch v := msg.(type) {
-		case core.SystemMessage:
+		case types.SystemMessage:
 			for _, c := range v.Content {
-				if cc, ok := c.(core.ConfigContent); ok {
+				if cc, ok := c.(types.ConfigContent); ok {
 					mergeConfig(&rc, cc)
 				}
 			}
-		case core.UserMessage:
+		case types.UserMessage:
 			for _, c := range v.Content {
-				if cc, ok := c.(core.ConfigContent); ok {
+				if cc, ok := c.(types.ConfigContent); ok {
 					mergeConfig(&rc, cc)
 				}
 			}
@@ -239,7 +239,7 @@ func (a *Agent) resolveConfig(messages []core.Message) resolvedConfig {
 	return rc
 }
 
-func mergeConfig(rc *resolvedConfig, cc core.ConfigContent) {
+func mergeConfig(rc *resolvedConfig, cc types.ConfigContent) {
 	if cc.Model != "" {
 		rc.model = cc.Model
 	}
@@ -256,31 +256,31 @@ func mergeConfig(rc *resolvedConfig, cc core.ConfigContent) {
 
 // stripMetadata removes ConfigContent and FeedbackContent blocks from messages
 // before sending to the LLM. These are tree metadata, not conversation context.
-func stripMetadata(messages []core.Message) []core.Message {
-	out := make([]core.Message, 0, len(messages))
+func stripMetadata(messages []types.Message) []types.Message {
+	out := make([]types.Message, 0, len(messages))
 	for _, msg := range messages {
 		switch v := msg.(type) {
-		case core.SystemMessage:
-			filtered := make([]core.SystemContent, 0, len(v.Content))
+		case types.SystemMessage:
+			filtered := make([]types.SystemContent, 0, len(v.Content))
 			for _, c := range v.Content {
-				if _, ok := c.(core.ConfigContent); !ok {
+				if _, ok := c.(types.ConfigContent); !ok {
 					filtered = append(filtered, c)
 				}
 			}
 			if len(filtered) > 0 {
-				out = append(out, core.SystemMessage{Content: filtered})
+				out = append(out, types.SystemMessage{Content: filtered})
 			}
-		case core.UserMessage:
-			filtered := make([]core.UserContent, 0, len(v.Content))
+		case types.UserMessage:
+			filtered := make([]types.UserContent, 0, len(v.Content))
 			for _, c := range v.Content {
 				switch c.(type) {
-				case core.ConfigContent, core.FeedbackContent:
+				case types.ConfigContent, types.FeedbackContent:
 					continue
 				}
 				filtered = append(filtered, c)
 			}
 			if len(filtered) > 0 {
-				out = append(out, core.UserMessage{Content: filtered})
+				out = append(out, types.UserMessage{Content: filtered})
 			}
 		default:
 			out = append(out, msg)
@@ -290,9 +290,9 @@ func stripMetadata(messages []core.Message) []core.Message {
 }
 
 // callProvider invokes the LLM, using structured output when available.
-func (a *Agent) callProvider(ctx context.Context, messages []core.Message, tools []core.ToolDef) (<-chan core.Delta, error) {
+func (a *Agent) callProvider(ctx context.Context, messages []types.Message, tools []types.ToolDef) (<-chan types.Delta, error) {
 	if a.cfg.ResponseSchema != nil && len(tools) == 0 {
-		if sp, ok := a.cfg.Provider.(core.StructuredOutputProvider); ok {
+		if sp, ok := a.cfg.Provider.(types.StructuredOutputProvider); ok {
 			return sp.ChatStreamWithSchema(ctx, messages, tools, a.cfg.ResponseSchema)
 		}
 	}
@@ -305,28 +305,28 @@ func (a *Agent) callProvider(ctx context.Context, messages []core.Message, tools
 // For each FileContent, it resolves the URI via scheme-matched Resolver, then
 // checks the provider's ContentNegotiator — if the media type is native, the
 // FileContent is kept; otherwise, it is converted via an Extractor.
-func (a *Agent) resolveFiles(ctx context.Context, messages []core.Message) []core.Message {
+func (a *Agent) resolveFiles(ctx context.Context, messages []types.Message) []types.Message {
 	if len(a.cfg.Resolvers) == 0 {
 		return messages
 	}
 
 	// Determine native content support from the provider.
-	var support core.ContentSupport
-	if cn, ok := a.cfg.Provider.(core.ContentNegotiator); ok {
+	var support types.ContentSupport
+	if cn, ok := a.cfg.Provider.(types.ContentNegotiator); ok {
 		support = cn.ContentSupport()
 	}
 
-	out := make([]core.Message, 0, len(messages))
+	out := make([]types.Message, 0, len(messages))
 	for _, msg := range messages {
-		um, ok := msg.(core.UserMessage)
+		um, ok := msg.(types.UserMessage)
 		if !ok {
 			out = append(out, msg)
 			continue
 		}
 
-		var replaced []core.UserContent
+		var replaced []types.UserContent
 		for _, c := range um.Content {
-			fc, ok := c.(core.FileContent)
+			fc, ok := c.(types.FileContent)
 			if !ok || len(fc.Data) > 0 {
 				replaced = append(replaced, c)
 				continue
@@ -370,7 +370,7 @@ func (a *Agent) resolveFiles(ctx context.Context, messages []core.Message) []cor
 			replaced = append(replaced, fc)
 		}
 
-		out = append(out, core.UserMessage{Content: replaced})
+		out = append(out, types.UserMessage{Content: replaced})
 	}
 	return out
 }
@@ -390,13 +390,13 @@ func uriScheme(uri string) string {
 
 // ── Run loop ─────────────────────────────────────────────────────────
 
-func (a *Agent) runLoop(ctx context.Context, stream *EventStream, input []core.Message, branch core.BranchID) {
+func (a *Agent) runLoop(ctx context.Context, stream *EventStream, input []types.Message, branch types.BranchID) {
 	log := a.cfg.Logger
 	start := time.Now()
 	log.Debug("agent loop started", "agent", a.cfg.Name, "branch", branch)
 
 	defer func() {
-		stream.send(core.DoneDelta{})
+		stream.send(types.DoneDelta{})
 		stream.close(nil)
 		a.cfg.Metrics.RecordAgentInvocation(ctx, a.cfg.Name, time.Since(start))
 		log.Debug("agent loop finished", "agent", a.cfg.Name, "elapsed", time.Since(start))
@@ -408,11 +408,11 @@ func (a *Agent) runLoop(ctx context.Context, stream *EventStream, input []core.M
 	for _, msg := range input {
 		tip, err := tr.Tip(branch)
 		if err != nil {
-			stream.send(core.ErrorDelta{Error: err})
+			stream.send(types.ErrorDelta{Error: err})
 			return
 		}
 		if _, err := tr.AddChild(tip.ID, msg); err != nil {
-			stream.send(core.ErrorDelta{Error: err})
+			stream.send(types.ErrorDelta{Error: err})
 			return
 		}
 	}
@@ -422,7 +422,7 @@ func (a *Agent) runLoop(ctx context.Context, stream *EventStream, input []core.M
 	for iterCount := 0; ; iterCount++ {
 		select {
 		case <-ctx.Done():
-			stream.send(core.ErrorDelta{Error: core.ErrStreamCanceled})
+			stream.send(types.ErrorDelta{Error: types.ErrStreamCanceled})
 			return
 		default:
 		}
@@ -430,7 +430,7 @@ func (a *Agent) runLoop(ctx context.Context, stream *EventStream, input []core.M
 		// Flatten the branch to get current message history.
 		messages, err := tr.FlattenBranch(branch)
 		if err != nil {
-			stream.send(core.ErrorDelta{Error: err})
+			stream.send(types.ErrorDelta{Error: err})
 			return
 		}
 
@@ -463,16 +463,16 @@ func (a *Agent) runLoop(ctx context.Context, stream *EventStream, input []core.M
 		rx, llmErr := a.callProvider(ctx, llmMessages, toolDefs)
 		if llmErr != nil {
 			log.Error("provider call failed", "error", llmErr, "iteration", iterCount)
-			a.cfg.Metrics.RecordProviderCall(ctx, core.ProviderName(a.cfg.Provider), time.Since(llmStart), llmErr)
-			stream.send(core.ErrorDelta{Error: llmErr})
+			a.cfg.Metrics.RecordProviderCall(ctx, types.ProviderName(a.cfg.Provider), time.Since(llmStart), llmErr)
+			stream.send(types.ErrorDelta{Error: llmErr})
 			return
 		}
 
 		// Accumulate response, capture UsageDelta from provider.
 		agg := NewDefaultAggregator()
-		var usage *core.UsageDelta
+		var usage *types.UsageDelta
 		for delta := range rx {
-			if u, ok := delta.(core.UsageDelta); ok {
+			if u, ok := delta.(types.UsageDelta); ok {
 				usage = &u
 				continue
 			}
@@ -482,8 +482,8 @@ func (a *Agent) runLoop(ctx context.Context, stream *EventStream, input []core.M
 
 		// Emit enriched usage delta.
 		latency := time.Since(llmStart)
-		a.cfg.Metrics.RecordProviderCall(ctx, core.ProviderName(a.cfg.Provider), latency, nil)
-		enriched := core.UsageDelta{Latency: latency}
+		a.cfg.Metrics.RecordProviderCall(ctx, types.ProviderName(a.cfg.Provider), latency, nil)
+		enriched := types.UsageDelta{Latency: latency}
 		if usage != nil {
 			enriched.PromptTokens = usage.PromptTokens
 			enriched.CompletionTokens = usage.CompletionTokens
@@ -499,23 +499,23 @@ func (a *Agent) runLoop(ctx context.Context, stream *EventStream, input []core.M
 		// Persist assistant message to tree.
 		tip, err := tr.Tip(branch)
 		if err != nil {
-			stream.send(core.ErrorDelta{Error: err})
+			stream.send(types.ErrorDelta{Error: err})
 			return
 		}
 		if _, err := tr.AddChild(tip.ID, msg); err != nil {
-			stream.send(core.ErrorDelta{Error: err})
+			stream.send(types.ErrorDelta{Error: err})
 			return
 		}
 
 		// Check for tool calls.
-		assistantMsg, ok := msg.(core.AssistantMessage)
+		assistantMsg, ok := msg.(types.AssistantMessage)
 		if !ok {
 			break
 		}
 
-		var toolCalls []core.ToolUseContent
+		var toolCalls []types.ToolUseContent
 		for _, block := range assistantMsg.Content {
-			if tc, ok := block.(core.ToolUseContent); ok {
+			if tc, ok := block.(types.ToolUseContent); ok {
 				toolCalls = append(toolCalls, tc)
 			}
 		}
@@ -528,26 +528,26 @@ func (a *Agent) runLoop(ctx context.Context, stream *EventStream, input []core.M
 		results := a.executeToolsConcurrently(ctx, stream, toolCalls)
 
 		// Build a single SystemMessage with all tool results and persist.
-		toolResultContents := make([]core.ToolResultContent, len(results))
+		toolResultContents := make([]types.ToolResultContent, len(results))
 		for i, r := range results {
 			text := r.result
 			if r.err != "" && text == "" {
 				text = "Error: " + r.err
 			}
-			toolResultContents[i] = core.ToolResultContent{
+			toolResultContents[i] = types.ToolResultContent{
 				ToolCallID: r.toolCallID,
 				Text:       text,
 			}
 		}
 
-		toolResultMsg := core.NewToolResultMessage(toolResultContents...)
+		toolResultMsg := types.NewToolResultMessage(toolResultContents...)
 		tip, err = tr.Tip(branch)
 		if err != nil {
-			stream.send(core.ErrorDelta{Error: err})
+			stream.send(types.ErrorDelta{Error: err})
 			return
 		}
 		if _, err := tr.AddChild(tip.ID, toolResultMsg); err != nil {
-			stream.send(core.ErrorDelta{Error: err})
+			stream.send(types.ErrorDelta{Error: err})
 			return
 		}
 	}
@@ -562,16 +562,16 @@ type toolResult struct {
 
 // executeToolsConcurrently runs all tool calls in parallel, streaming deltas
 // as they arrive. Results are returned in the same order as toolCalls.
-func (a *Agent) executeToolsConcurrently(ctx context.Context, stream *EventStream, toolCalls []core.ToolUseContent) []toolResult {
+func (a *Agent) executeToolsConcurrently(ctx context.Context, stream *EventStream, toolCalls []types.ToolUseContent) []toolResult {
 	results := make([]toolResult, len(toolCalls))
 	var wg sync.WaitGroup
 
 	for i, tc := range toolCalls {
 		wg.Add(1)
-		go func(idx int, tc core.ToolUseContent) {
+		go func(idx int, tc types.ToolUseContent) {
 			defer wg.Done()
 
-			stream.send(core.ToolExecStartDelta{ToolCallID: tc.ID, Name: tc.Name})
+			stream.send(types.ToolExecStartDelta{ToolCallID: tc.ID, Name: tc.Name})
 
 			tool, found := a.tools.Get(tc.Name)
 			if !found {
@@ -579,7 +579,7 @@ func (a *Agent) executeToolsConcurrently(ctx context.Context, stream *EventStrea
 					toolCallID: tc.ID,
 					err:        fmt.Sprintf("tool not found: %s", tc.Name),
 				}
-				stream.send(core.ToolExecEndDelta{
+				stream.send(types.ToolExecEndDelta{
 					ToolCallID: tc.ID,
 					Error:      results[idx].err,
 				})
@@ -587,8 +587,8 @@ func (a *Agent) executeToolsConcurrently(ctx context.Context, stream *EventStrea
 			}
 
 			// Check for markers — if present, emit MarkerDelta and wait for resolution.
-			if mt, ok := tool.(*core.MarkedTool); ok && len(mt.Markers) > 0 {
-				stream.send(core.MarkerDelta{
+			if mt, ok := tool.(*types.MarkedTool); ok && len(mt.Markers) > 0 {
+				stream.send(types.MarkerDelta{
 					ToolCallID: tc.ID,
 					ToolName:   tc.Name,
 					Arguments:  tc.Arguments,
@@ -607,7 +607,7 @@ func (a *Agent) executeToolsConcurrently(ctx context.Context, stream *EventStrea
 							toolCallID: tc.ID,
 							err:        msg,
 						}
-						stream.send(core.ToolExecEndDelta{ToolCallID: tc.ID, Error: results[idx].err})
+						stream.send(types.ToolExecEndDelta{ToolCallID: tc.ID, Error: results[idx].err})
 						return
 					}
 					if res.ModifiedArgs != nil {
@@ -629,11 +629,11 @@ func (a *Agent) executeToolsConcurrently(ctx context.Context, stream *EventStrea
 				var resultBuf strings.Builder
 				for d := range childStream.Deltas() {
 					// Forward child deltas wrapped with attribution.
-					stream.send(core.ToolExecDelta{
+					stream.send(types.ToolExecDelta{
 						ToolCallID: tc.ID,
 						Inner:      d,
 					})
-					if tcd, ok := d.(core.TextContentDelta); ok {
+					if tcd, ok := d.(types.TextContentDelta); ok {
 						resultBuf.WriteString(tcd.Content)
 					}
 				}
@@ -665,7 +665,7 @@ func (a *Agent) executeToolsConcurrently(ctx context.Context, stream *EventStrea
 				}
 			}
 
-			stream.send(core.ToolExecEndDelta{
+			stream.send(types.ToolExecEndDelta{
 				ToolCallID: results[idx].toolCallID,
 				Result:     results[idx].result,
 				Error:      results[idx].err,
