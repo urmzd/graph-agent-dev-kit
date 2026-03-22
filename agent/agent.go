@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -28,6 +29,12 @@ type AgentConfig struct {
 
 	// Structured output: if set, constrains final LLM output to this JSON schema.
 	ResponseSchema *core.ParameterSchema
+
+	// Logger for agent events. Defaults to slog.Default() if nil.
+	Logger *slog.Logger
+
+	// Metrics collector. Defaults to NoopMetrics if nil.
+	Metrics core.Metrics
 }
 
 // Agent runs an LLM agent loop with tool execution.
@@ -43,6 +50,12 @@ type Agent struct {
 func NewAgent(cfg AgentConfig) *Agent {
 	if cfg.MaxIter <= 0 {
 		cfg.MaxIter = 10
+	}
+	if cfg.Logger == nil {
+		cfg.Logger = slog.Default()
+	}
+	if cfg.Metrics == nil {
+		cfg.Metrics = core.NoopMetrics{}
 	}
 	tools := cfg.Tools
 	if tools == nil {
@@ -378,9 +391,15 @@ func uriScheme(uri string) string {
 // ── Run loop ─────────────────────────────────────────────────────────
 
 func (a *Agent) runLoop(ctx context.Context, stream *EventStream, input []core.Message, branch core.BranchID) {
+	log := a.cfg.Logger
+	start := time.Now()
+	log.Debug("agent loop started", "agent", a.cfg.Name, "branch", branch)
+
 	defer func() {
 		stream.send(core.DoneDelta{})
 		stream.close(nil)
+		a.cfg.Metrics.RecordAgentInvocation(ctx, a.cfg.Name, time.Since(start))
+		log.Debug("agent loop finished", "agent", a.cfg.Name, "elapsed", time.Since(start))
 	}()
 
 	tr := a.cfg.Tree
@@ -440,9 +459,11 @@ func (a *Agent) runLoop(ctx context.Context, stream *EventStream, input []core.M
 		}
 
 		// Call LLM + timing.
-		start := time.Now()
+		llmStart := time.Now()
 		rx, llmErr := a.callProvider(ctx, llmMessages, toolDefs)
 		if llmErr != nil {
+			log.Error("provider call failed", "error", llmErr, "iteration", iterCount)
+			a.cfg.Metrics.RecordProviderCall(ctx, core.ProviderName(a.cfg.Provider), time.Since(llmStart), llmErr)
 			stream.send(core.ErrorDelta{Error: llmErr})
 			return
 		}
@@ -460,7 +481,8 @@ func (a *Agent) runLoop(ctx context.Context, stream *EventStream, input []core.M
 		}
 
 		// Emit enriched usage delta.
-		latency := time.Since(start)
+		latency := time.Since(llmStart)
+		a.cfg.Metrics.RecordProviderCall(ctx, core.ProviderName(a.cfg.Provider), latency, nil)
 		enriched := core.UsageDelta{Latency: latency}
 		if usage != nil {
 			enriched.PromptTokens = usage.PromptTokens
@@ -628,7 +650,9 @@ func (a *Agent) executeToolsConcurrently(ctx context.Context, stream *EventStrea
 				}
 			} else {
 				// Regular tool execution.
+				toolStart := time.Now()
 				result, execErr := tool.Execute(ctx, tc.Arguments)
+				a.cfg.Metrics.RecordToolCall(ctx, tc.Name, time.Since(toolStart), execErr)
 				errStr := ""
 				if execErr != nil {
 					errStr = execErr.Error()
