@@ -1,5 +1,7 @@
 package core
 
+import "context"
+
 // TxID uniquely identifies a WAL transaction.
 type TxID string
 
@@ -27,10 +29,10 @@ type TxOp struct {
 
 // WAL provides write-ahead logging for atomic tree mutations.
 type WAL interface {
-	Begin() (TxID, error)
-	Append(txID TxID, op TxOp) error
-	Commit(txID TxID) error
-	Abort(txID TxID) error
-	Recover() ([]TxID, error)
-	Replay(txID TxID) ([]TxOp, error)
+	Begin(ctx context.Context) (TxID, error)
+	Append(ctx context.Context, txID TxID, op TxOp) error
+	Commit(ctx context.Context, txID TxID) error
+	Abort(ctx context.Context, txID TxID) error
+	Recover(ctx context.Context) ([]TxID, error)
+	Replay(ctx context.Context, txID TxID) ([]TxOp, error)
 }
