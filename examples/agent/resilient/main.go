@@ -11,7 +11,7 @@ import (
 	"time"
 
 	agentsdk "github.com/urmzd/saige/agent"
-	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/types"
 	"github.com/urmzd/saige/agent/provider/fallback"
 	"github.com/urmzd/saige/agent/provider/ollama"
 	"github.com/urmzd/saige/agent/provider/retry"
@@ -44,20 +44,20 @@ func main() {
 	})
 
 	// Invoke and stream the response.
-	stream := agent.Invoke(context.Background(), []core.Message{
-		core.NewUserMessage("Explain the benefits of retry and fallback patterns in distributed systems."),
+	stream := agent.Invoke(context.Background(), []types.Message{
+		types.NewUserMessage("Explain the benefits of retry and fallback patterns in distributed systems."),
 	})
 
 	for delta := range stream.Deltas() {
 		switch d := delta.(type) {
-		case core.TextContentDelta:
+		case types.TextContentDelta:
 			fmt.Print(d.Content)
-		case core.UsageDelta:
+		case types.UsageDelta:
 			fmt.Printf("\n[usage] prompt=%d completion=%d latency=%s\n",
 				d.PromptTokens, d.CompletionTokens, d.Latency)
-		case core.ErrorDelta:
+		case types.ErrorDelta:
 			log.Fatal(d.Error)
-		case core.DoneDelta:
+		case types.DoneDelta:
 			fmt.Println()
 		}
 	}

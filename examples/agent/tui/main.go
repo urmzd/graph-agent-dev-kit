@@ -20,7 +20,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	agentsdk "github.com/urmzd/saige/agent"
-	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/types"
 	"github.com/urmzd/saige/agent/provider/ollama"
 	"github.com/urmzd/saige/agent/tui"
 )
@@ -37,14 +37,14 @@ func main() {
 	}
 	adapter := ollama.NewAdapter(client)
 
-	searchTool := &core.ToolFunc{
-		Def: core.ToolDef{
+	searchTool := &types.ToolFunc{
+		Def: types.ToolDef{
 			Name:        "search",
 			Description: "Search the web for information on a topic",
-			Parameters: core.ParameterSchema{
+			Parameters: types.ParameterSchema{
 				Type:     "object",
 				Required: []string{"query"},
-				Properties: map[string]core.PropertyDef{
+				Properties: map[string]types.PropertyDef{
 					"query": {Type: "string", Description: "Search query"},
 				},
 			},
@@ -66,7 +66,7 @@ func main() {
 				Description:  "A research specialist that can search for information",
 				SystemPrompt: "You are a research assistant. Use the search tool to find information.",
 				Provider:     adapter,
-				Tools:        core.NewToolRegistry(searchTool),
+				Tools:        types.NewToolRegistry(searchTool),
 			},
 		},
 	})
@@ -87,8 +87,8 @@ func main() {
 	}
 
 	// Single-turn: invoke once and display results.
-	stream := agent.Invoke(context.Background(), []core.Message{
-		core.NewUserMessage("Research the latest Go features"),
+	stream := agent.Invoke(context.Background(), []types.Message{
+		types.NewUserMessage("Research the latest Go features"),
 	})
 
 	if *interactive {

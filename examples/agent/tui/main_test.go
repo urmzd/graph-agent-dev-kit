@@ -7,13 +7,13 @@ import (
 
 	agentsdk "github.com/urmzd/saige/agent"
 	"github.com/urmzd/saige/agent/agenttest"
-	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/types"
 	"github.com/urmzd/saige/agent/tui"
 )
 
 func TestStreamVerbose(t *testing.T) {
 	provider := &agenttest.ScriptedProvider{
-		Responses: [][]core.Delta{
+		Responses: [][]types.Delta{
 			agenttest.ToolCallResponse("tc-1", "delegate_to_researcher", map[string]any{
 				"task": "research Go features",
 			}),
@@ -22,7 +22,7 @@ func TestStreamVerbose(t *testing.T) {
 	}
 
 	researcherProvider := &agenttest.ScriptedProvider{
-		Responses: [][]core.Delta{
+		Responses: [][]types.Delta{
 			agenttest.TextResponse("Go 1.24 adds generic type aliases."),
 		},
 	}
@@ -41,8 +41,8 @@ func TestStreamVerbose(t *testing.T) {
 		},
 	})
 
-	stream := agent.Invoke(t.Context(), []core.Message{
-		core.NewUserMessage("Research Go features"),
+	stream := agent.Invoke(t.Context(), []types.Message{
+		types.NewUserMessage("Research Go features"),
 	})
 
 	info := agent.Info()

@@ -10,7 +10,7 @@ import (
 	"log"
 
 	agentsdk "github.com/urmzd/saige/agent"
-	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/types"
 	"github.com/urmzd/saige/agent/provider/ollama"
 )
 
@@ -29,14 +29,14 @@ func main() {
 	client := ollama.NewClient("http://localhost:11434", "llama3.2", "")
 	adapter := ollama.NewAdapter(client)
 
-	addTool := &core.ToolFunc{
-		Def: core.ToolDef{
+	addTool := &types.ToolFunc{
+		Def: types.ToolDef{
 			Name:        "add",
 			Description: "Add two numbers",
-			Parameters: core.ParameterSchema{
+			Parameters: types.ParameterSchema{
 				Type:     "object",
 				Required: []string{"a", "b"},
-				Properties: map[string]core.PropertyDef{
+				Properties: map[string]types.PropertyDef{
 					"a": {Type: "number", Description: "First number"},
 					"b": {Type: "number", Description: "Second number"},
 				},
@@ -53,40 +53,40 @@ func main() {
 		Name:         "streaming-demo",
 		SystemPrompt: "You are a helpful calculator. Use the add tool when asked to add numbers.",
 		Provider:     adapter,
-		Tools:        core.NewToolRegistry(addTool),
+		Tools:        types.NewToolRegistry(addTool),
 	})
 
-	stream := agent.Invoke(context.Background(), []core.Message{
-		core.NewUserMessage("What is 10 + 25? Please use the tool."),
+	stream := agent.Invoke(context.Background(), []types.Message{
+		types.NewUserMessage("What is 10 + 25? Please use the tool."),
 	})
 
 	for delta := range stream.Deltas() {
 		switch d := delta.(type) {
-		case core.TextStartDelta:
+		case types.TextStartDelta:
 			fmt.Printf("%s[text-start]%s ", colorDim, colorReset)
-		case core.TextContentDelta:
+		case types.TextContentDelta:
 			fmt.Printf("%s%s%s", colorGreen, d.Content, colorReset)
-		case core.TextEndDelta:
+		case types.TextEndDelta:
 			fmt.Printf(" %s[text-end]%s\n", colorDim, colorReset)
-		case core.ToolCallStartDelta:
+		case types.ToolCallStartDelta:
 			fmt.Printf("%s[tool-call-start] name=%s id=%s%s\n", colorYellow, d.Name, d.ID, colorReset)
-		case core.ToolCallArgumentDelta:
+		case types.ToolCallArgumentDelta:
 			fmt.Printf("%s  args: %s%s\n", colorYellow, d.Content, colorReset)
-		case core.ToolCallEndDelta:
+		case types.ToolCallEndDelta:
 			fmt.Printf("%s[tool-call-end] args=%v%s\n", colorYellow, d.Arguments, colorReset)
-		case core.ToolExecStartDelta:
+		case types.ToolExecStartDelta:
 			fmt.Printf("%s[exec-start] %s (id=%s)%s\n", colorCyan, d.Name, d.ToolCallID, colorReset)
-		case core.ToolExecDelta:
+		case types.ToolExecDelta:
 			fmt.Printf("%s  [exec-delta] id=%s inner=%T%s\n", colorCyan, d.ToolCallID, d.Inner, colorReset)
-		case core.ToolExecEndDelta:
+		case types.ToolExecEndDelta:
 			fmt.Printf("%s[exec-end] id=%s result=%s err=%s%s\n", colorCyan, d.ToolCallID, d.Result, d.Error, colorReset)
-		case core.UsageDelta:
+		case types.UsageDelta:
 			fmt.Printf("%s[usage] prompt=%d completion=%d total=%d latency=%s%s\n",
 				colorMagenta, d.PromptTokens, d.CompletionTokens, d.TotalTokens, d.Latency, colorReset)
-		case core.ErrorDelta:
+		case types.ErrorDelta:
 			fmt.Printf("%s[error] %v%s\n", colorRed, d.Error, colorReset)
 			log.Fatal(d.Error)
-		case core.DoneDelta:
+		case types.DoneDelta:
 			fmt.Printf("%s[done]%s\n", colorDim, colorReset)
 		}
 	}

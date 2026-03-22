@@ -16,7 +16,7 @@ import (
 	"os/signal"
 
 	agentsdk "github.com/urmzd/saige/agent"
-	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/types"
 	"github.com/urmzd/saige/agent/provider/ollama"
 	"github.com/urmzd/saige/agent/tui"
 )
@@ -27,14 +27,14 @@ func main() {
 	client := ollama.NewClient("http://localhost:11434", "qwen3.5:4b", "")
 	adapter := ollama.NewAdapter(client)
 
-	addTool := &core.ToolFunc{
-		Def: core.ToolDef{
+	addTool := &types.ToolFunc{
+		Def: types.ToolDef{
 			Name:        "add",
 			Description: "Add two numbers together",
-			Parameters: core.ParameterSchema{
+			Parameters: types.ParameterSchema{
 				Type:     "object",
 				Required: []string{"a", "b"},
-				Properties: map[string]core.PropertyDef{
+				Properties: map[string]types.PropertyDef{
 					"a": {Type: "number", Description: "First number"},
 					"b": {Type: "number", Description: "Second number"},
 				},
@@ -51,7 +51,7 @@ func main() {
 		Name:         "calculator",
 		SystemPrompt: "You are a helpful calculator. Use the add tool when asked to add numbers.",
 		Provider:     adapter,
-		Tools:        core.NewToolRegistry(addTool),
+		Tools:        types.NewToolRegistry(addTool),
 	})
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)

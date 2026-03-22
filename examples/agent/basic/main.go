@@ -9,7 +9,7 @@ import (
 	"log"
 
 	agentsdk "github.com/urmzd/saige/agent"
-	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/types"
 	"github.com/urmzd/saige/agent/provider/ollama"
 )
 
@@ -19,14 +19,14 @@ func main() {
 	adapter := ollama.NewAdapter(client)
 
 	// Define an "add" tool that sums two numbers.
-	addTool := &core.ToolFunc{
-		Def: core.ToolDef{
+	addTool := &types.ToolFunc{
+		Def: types.ToolDef{
 			Name:        "add",
 			Description: "Add two numbers together",
-			Parameters: core.ParameterSchema{
+			Parameters: types.ParameterSchema{
 				Type:     "object",
 				Required: []string{"a", "b"},
-				Properties: map[string]core.PropertyDef{
+				Properties: map[string]types.PropertyDef{
 					"a": {Type: "number", Description: "First number"},
 					"b": {Type: "number", Description: "Second number"},
 				},
@@ -44,22 +44,22 @@ func main() {
 		Name:         "calculator",
 		SystemPrompt: "You are a helpful calculator. Use the add tool to perform addition.",
 		Provider:     adapter,
-		Tools:        core.NewToolRegistry(addTool),
+		Tools:        types.NewToolRegistry(addTool),
 	})
 
 	// Invoke with a user message.
-	stream := agent.Invoke(context.Background(), []core.Message{
-		core.NewUserMessage("What is 2 + 3?"),
+	stream := agent.Invoke(context.Background(), []types.Message{
+		types.NewUserMessage("What is 2 + 3?"),
 	})
 
 	// Stream deltas and print text content.
 	for delta := range stream.Deltas() {
 		switch d := delta.(type) {
-		case core.TextContentDelta:
+		case types.TextContentDelta:
 			fmt.Print(d.Content)
-		case core.ErrorDelta:
+		case types.ErrorDelta:
 			log.Fatal(d.Error)
-		case core.DoneDelta:
+		case types.DoneDelta:
 			fmt.Println()
 		}
 	}

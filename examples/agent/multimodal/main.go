@@ -13,7 +13,7 @@ import (
 	"strings"
 
 	agentsdk "github.com/urmzd/saige/agent"
-	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/types"
 	"github.com/urmzd/saige/agent/provider/ollama"
 )
 
@@ -31,15 +31,15 @@ func main() {
 	}
 
 	// file:// resolver that reads from the local filesystem.
-	fileResolver := core.ResolverFunc(func(ctx context.Context, uri string) (core.ResolvedFile, error) {
+	fileResolver := types.ResolverFunc(func(ctx context.Context, uri string) (types.ResolvedFile, error) {
 		path := strings.TrimPrefix(uri, "file://")
 		data, err := os.ReadFile(path)
 		if err != nil {
-			return core.ResolvedFile{}, fmt.Errorf("read file %s: %w", path, err)
+			return types.ResolvedFile{}, fmt.Errorf("read file %s: %w", path, err)
 		}
 		// Detect media type from content.
-		mediaType := core.MediaType(http.DetectContentType(data))
-		return core.ResolvedFile{Data: data, MediaType: mediaType}, nil
+		mediaType := types.MediaType(http.DetectContentType(data))
+		return types.ResolvedFile{Data: data, MediaType: mediaType}, nil
 	})
 
 	// Build agent with the file resolver.
@@ -47,7 +47,7 @@ func main() {
 		Name:         "multimodal-agent",
 		SystemPrompt: "You are a helpful assistant that can analyze images and files.",
 		Provider:     adapter,
-		Resolvers: map[string]core.Resolver{
+		Resolvers: map[string]types.Resolver{
 			"file": fileResolver,
 		},
 	})
@@ -58,24 +58,24 @@ func main() {
 		imagePath = os.Args[1]
 	}
 
-	msg := core.NewUserMessageWithFiles(
+	msg := types.NewUserMessageWithFiles(
 		"Describe what you see in this image.",
-		core.FileContent{
+		types.FileContent{
 			URI:      "file://" + imagePath,
 			Filename: imagePath,
 		},
 	)
 
 	// Invoke the agent.
-	stream := agent.Invoke(context.Background(), []core.Message{msg})
+	stream := agent.Invoke(context.Background(), []types.Message{msg})
 
 	for delta := range stream.Deltas() {
 		switch d := delta.(type) {
-		case core.TextContentDelta:
+		case types.TextContentDelta:
 			fmt.Print(d.Content)
-		case core.ErrorDelta:
+		case types.ErrorDelta:
 			log.Fatal(d.Error)
-		case core.DoneDelta:
+		case types.DoneDelta:
 			fmt.Println()
 		}
 	}

@@ -1,7 +1,7 @@
-// Example: arxiv — Fetches an arXiv paper abstract, ingests it through the ragdk
-// pipeline, and demonstrates the full search pipeline with chunking, hybrid search
+// Example: arxiv — Fetches an arXiv paper abstract, ingests it through the saige
+// RAG pipeline, and demonstrates the full search pipeline with chunking, hybrid search
 // (BM25 + vector), MMR reranking, citations, lookup, update, evaluation metrics,
-// and adk tool registration.
+// and agent tool registration.
 //
 // Usage:
 //
@@ -25,7 +25,7 @@ import (
 	"github.com/urmzd/saige/rag/adktool"
 	"github.com/urmzd/saige/rag/memstore"
 	"github.com/urmzd/saige/rag/rageval"
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
 // --- arXiv API types ---
@@ -45,14 +45,14 @@ type arxivEntry struct {
 
 type paragraphExtractor struct{}
 
-func (e *paragraphExtractor) Extract(_ context.Context, raw *ragtypes.RawDocument) (*ragtypes.Document, error) {
+func (e *paragraphExtractor) Extract(_ context.Context, raw *types.RawDocument) (*types.Document, error) {
 	text := string(raw.Data)
 	paragraphs := splitParagraphs(text)
 
 	docUUID := newUUID("doc", raw.SourceURI)
 	now := time.Now()
 
-	var sections []ragtypes.Section
+	var sections []types.Section
 	for i, para := range paragraphs {
 		para = strings.TrimSpace(para)
 		if para == "" {
@@ -62,14 +62,14 @@ func (e *paragraphExtractor) Extract(_ context.Context, raw *ragtypes.RawDocumen
 		secUUID := newUUID("sec", docUUID, fmt.Sprint(i))
 		varUUID := newUUID("var", secUUID, "text")
 
-		sections = append(sections, ragtypes.Section{
+		sections = append(sections, types.Section{
 			UUID:         secUUID,
 			DocumentUUID: docUUID,
 			Index:        i,
-			Variants: []ragtypes.ContentVariant{{
+			Variants: []types.ContentVariant{{
 				UUID:        varUUID,
 				SectionUUID: secUUID,
-				ContentType: ragtypes.ContentText,
+				ContentType: types.ContentText,
 				MIMEType:    "text/plain",
 				Text:        para,
 			}},
@@ -81,7 +81,7 @@ func (e *paragraphExtractor) Extract(_ context.Context, raw *ragtypes.RawDocumen
 		title = md["title"]
 	}
 
-	return &ragtypes.Document{
+	return &types.Document{
 		UUID:      docUUID,
 		SourceURI: raw.SourceURI,
 		Title:     title,
@@ -122,9 +122,9 @@ const embedDim = 256
 
 type bowEmbedderRegistry struct{}
 
-func (r *bowEmbedderRegistry) Register(_ ragtypes.ContentType, _ ragtypes.VariantEmbedder) {}
+func (r *bowEmbedderRegistry) Register(_ types.ContentType, _ types.VariantEmbedder) {}
 
-func (r *bowEmbedderRegistry) Embed(_ context.Context, variants []ragtypes.ContentVariant) ([][]float32, error) {
+func (r *bowEmbedderRegistry) Embed(_ context.Context, variants []types.ContentVariant) ([][]float32, error) {
 	result := make([][]float32, len(variants))
 	for i, v := range variants {
 		result[i] = embedText(v.Text)
@@ -202,8 +202,8 @@ func main() {
 	// 4. Hybrid search with context assembly — vector + BM25 via RRF.
 	fmt.Println("=== Hybrid Search (Vector + BM25) with Citations ===")
 	sr, err := pipe.Search(ctx, "attention mechanism self-attention",
-		ragtypes.WithLimit(3),
-		ragtypes.WithContextAssembly(4096),
+		types.WithLimit(3),
+		types.WithContextAssembly(4096),
 	)
 	if err != nil {
 		log.Fatalf("search: %v", err)
@@ -232,7 +232,7 @@ func main() {
 
 	// 5. BM25-only exact-term search demonstration.
 	fmt.Println("=== BM25 Exact-Term Search ===")
-	sr2, err := pipe.Search(ctx, "28.4 BLEU", ragtypes.WithLimit(3))
+	sr2, err := pipe.Search(ctx, "28.4 BLEU", types.WithLimit(3))
 	if err != nil {
 		log.Fatalf("bm25 search: %v", err)
 	}
@@ -265,7 +265,7 @@ func main() {
 
 	// 7. Update document — re-ingest.
 	fmt.Println("=== Update Document ===")
-	updatedRaw := &ragtypes.RawDocument{
+	updatedRaw := &types.RawDocument{
 		SourceURI: raw.SourceURI,
 		MIMEType:  raw.MIMEType,
 		Data:      append(raw.Data, []byte("\n\nUpdated: This paper introduced the Transformer architecture.")...),
@@ -280,7 +280,7 @@ func main() {
 
 	// 8. Re-search to show updated results.
 	fmt.Println("=== Re-search after update ===")
-	sr3, err := pipe.Search(ctx, "Transformer architecture", ragtypes.WithLimit(2))
+	sr3, err := pipe.Search(ctx, "Transformer architecture", types.WithLimit(2))
 	if err != nil {
 		log.Fatalf("re-search: %v", err)
 	}
@@ -313,8 +313,8 @@ func main() {
 	}
 	fmt.Println()
 
-	// 10. Show adk tool registration pattern.
-	fmt.Println("=== ADK Tool Registration ===")
+	// 10. Show agent tool registration pattern.
+	fmt.Println("=== Agent Tool Registration ===")
 	tools := adktool.NewTools(pipe)
 	for _, tool := range tools {
 		def := tool.Definition()
@@ -341,7 +341,7 @@ func main() {
 	}
 }
 
-func fetchArxivPaper(arxivID string) (*ragtypes.RawDocument, error) {
+func fetchArxivPaper(arxivID string) (*types.RawDocument, error) {
 	url := fmt.Sprintf("http://export.arxiv.org/api/query?id_list=%s", arxivID)
 
 	client := &http.Client{Timeout: 30 * time.Second}
@@ -369,7 +369,7 @@ func fetchArxivPaper(arxivID string) (*ragtypes.RawDocument, error) {
 	title := strings.TrimSpace(entry.Title)
 	abstract := strings.TrimSpace(entry.Summary)
 
-	return &ragtypes.RawDocument{
+	return &types.RawDocument{
 		SourceURI: fmt.Sprintf("https://arxiv.org/abs/%s", arxivID),
 		MIMEType:  "text/plain",
 		Data:      []byte(abstract),

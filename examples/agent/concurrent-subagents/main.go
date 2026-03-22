@@ -13,7 +13,7 @@ import (
 	"time"
 
 	agentsdk "github.com/urmzd/saige/agent"
-	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/types"
 	"github.com/urmzd/saige/agent/provider/ollama"
 )
 
@@ -25,14 +25,14 @@ func main() {
 	var running int32
 
 	// Mock search tool for the researcher.
-	searchTool := &core.ToolFunc{
-		Def: core.ToolDef{
+	searchTool := &types.ToolFunc{
+		Def: types.ToolDef{
 			Name:        "search",
 			Description: "Search the web for information on a topic",
-			Parameters: core.ParameterSchema{
+			Parameters: types.ParameterSchema{
 				Type:     "object",
 				Required: []string{"query"},
-				Properties: map[string]core.PropertyDef{
+				Properties: map[string]types.PropertyDef{
 					"query": {Type: "string", Description: "Search query"},
 				},
 			},
@@ -49,14 +49,14 @@ func main() {
 	}
 
 	// Mock verify tool for the fact-checker.
-	verifyTool := &core.ToolFunc{
-		Def: core.ToolDef{
+	verifyTool := &types.ToolFunc{
+		Def: types.ToolDef{
 			Name:        "verify",
 			Description: "Verify a factual claim",
-			Parameters: core.ParameterSchema{
+			Parameters: types.ParameterSchema{
 				Type:     "object",
 				Required: []string{"claim"},
-				Properties: map[string]core.PropertyDef{
+				Properties: map[string]types.PropertyDef{
 					"claim": {Type: "string", Description: "The claim to verify"},
 				},
 			},
@@ -88,38 +88,38 @@ This allows them to work concurrently.`,
 				Description:  "A research specialist that searches for information on topics",
 				SystemPrompt: "You are a research assistant. Use the search tool to find information. Be concise.",
 				Provider:     adapter,
-				Tools:        core.NewToolRegistry(searchTool),
+				Tools:        types.NewToolRegistry(searchTool),
 			},
 			{
 				Name:         "fact_checker",
 				Description:  "A fact-checking specialist that verifies claims for accuracy",
 				SystemPrompt: "You are a fact-checker. Use the verify tool to check claims. Be concise.",
 				Provider:     adapter,
-				Tools:        core.NewToolRegistry(verifyTool),
+				Tools:        types.NewToolRegistry(verifyTool),
 			},
 		},
 	})
 
-	stream := agent.Invoke(context.Background(), []core.Message{
-		core.NewUserMessage("Research the latest Go 1.24 features and verify that Go 1.24 introduced generic type aliases."),
+	stream := agent.Invoke(context.Background(), []types.Message{
+		types.NewUserMessage("Research the latest Go 1.24 features and verify that Go 1.24 introduced generic type aliases."),
 	})
 
 	// Consume deltas, showing sub-agent attribution.
 	for delta := range stream.Deltas() {
 		switch d := delta.(type) {
-		case core.TextContentDelta:
+		case types.TextContentDelta:
 			fmt.Print(d.Content)
-		case core.ToolExecStartDelta:
+		case types.ToolExecStartDelta:
 			fmt.Printf("\n[tool-start] %s (id=%s)\n", d.Name, d.ToolCallID)
-		case core.ToolExecDelta:
-			if inner, ok := d.Inner.(core.TextContentDelta); ok {
+		case types.ToolExecDelta:
+			if inner, ok := d.Inner.(types.TextContentDelta); ok {
 				fmt.Printf("  [sub-agent %s] %s", d.ToolCallID, inner.Content)
 			}
-		case core.ToolExecEndDelta:
+		case types.ToolExecEndDelta:
 			fmt.Printf("\n[tool-end] id=%s\n", d.ToolCallID)
-		case core.ErrorDelta:
+		case types.ErrorDelta:
 			log.Fatal(d.Error)
-		case core.DoneDelta:
+		case types.DoneDelta:
 			fmt.Println()
 		}
 	}
