@@ -7,8 +7,8 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
-	"github.com/urmzd/graph-agent-dev-kit/rag/tokenizer"
+	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/tokenizer"
 )
 
 // CompressingAssembler uses an LLM to extract query-relevant sentences from each hit

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/urmzd/graph-agent-dev-kit/agent/core"
+	"github.com/urmzd/saige/agent/core"
 )
 
 // ScriptedProvider replays predefined delta sequences, one per ChatStream call.

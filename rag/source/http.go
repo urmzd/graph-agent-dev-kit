@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
+	"github.com/urmzd/saige/rag/ragtypes"
 )
 
 // HTTP fetches documents from a list of URLs.

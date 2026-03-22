@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/urmzd/graph-agent-dev-kit/agent/core"
+	"github.com/urmzd/saige/agent/core"
 )
 
 // txState tracks the state of an in-flight transaction.

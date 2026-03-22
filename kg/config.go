@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/urmzd/graph-agent-dev-kit/kg/internal/engine"
-	"github.com/urmzd/graph-agent-dev-kit/kg/kgtypes"
-	kgsurrealdb "github.com/urmzd/graph-agent-dev-kit/kg/surrealdb"
+	"github.com/urmzd/saige/kg/internal/engine"
+	"github.com/urmzd/saige/kg/kgtypes"
+	kgsurrealdb "github.com/urmzd/saige/kg/surrealdb"
 )
 
 // Config holds configuration for creating a Graph.

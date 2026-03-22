@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/urmzd/graph-agent-dev-kit/kg/kgtypes"
+	"github.com/urmzd/saige/kg/kgtypes"
 )
 
 // BuildExtractionPrompt creates an ontology-aware extraction prompt.

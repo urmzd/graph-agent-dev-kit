@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/urmzd/graph-agent-dev-kit/rag/tokenizer"
+	"github.com/urmzd/saige/rag/tokenizer"
 )
 
 // --- Errors ---

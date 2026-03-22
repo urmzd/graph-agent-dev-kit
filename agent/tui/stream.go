@@ -16,7 +16,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/glamour"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/urmzd/graph-agent-dev-kit/agent/core"
+	"github.com/urmzd/saige/agent/core"
 )
 
 // ── Agent info header ──────────────────────────────────────────────

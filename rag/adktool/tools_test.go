@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/urmzd/graph-agent-dev-kit/rag/adktool"
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
+	"github.com/urmzd/saige/rag/adktool"
+	"github.com/urmzd/saige/rag/ragtypes"
 )
 
 type mockPipeline struct {

@@ -3,7 +3,7 @@ package fallback
 import (
 	"context"
 
-	"github.com/urmzd/graph-agent-dev-kit/agent/core"
+	"github.com/urmzd/saige/agent/core"
 )
 
 // Provider tries providers in order, falling back on failure.

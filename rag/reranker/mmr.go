@@ -5,7 +5,7 @@ import (
 	"context"
 	"math"
 
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
+	"github.com/urmzd/saige/rag/ragtypes"
 )
 
 // MMRConfig holds MMR reranker parameters.

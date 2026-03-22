@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/urmzd/graph-agent-dev-kit/agent/core"
+	"github.com/urmzd/saige/agent/core"
 )
 
 // serializedTree is the JSON wire format for a Tree.

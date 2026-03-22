@@ -5,8 +5,8 @@ import (
 	"math"
 	"testing"
 
-	"github.com/urmzd/graph-agent-dev-kit/rag/chunker"
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
+	"github.com/urmzd/saige/rag/chunker"
+	"github.com/urmzd/saige/rag/ragtypes"
 )
 
 // mockEmbedder returns predictable embeddings: alternating similar/dissimilar.

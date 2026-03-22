@@ -3,7 +3,7 @@ package tree
 import (
 	"fmt"
 
-	"github.com/urmzd/graph-agent-dev-kit/agent/core"
+	"github.com/urmzd/saige/agent/core"
 )
 
 // AnnotatedMessage pairs a message with its tree metadata.

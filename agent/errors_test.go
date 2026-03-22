@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/urmzd/graph-agent-dev-kit/agent/core"
+	"github.com/urmzd/saige/agent/core"
 )
 
 func TestProviderError_Is(t *testing.T) {

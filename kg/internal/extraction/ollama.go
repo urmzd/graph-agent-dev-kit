@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/urmzd/graph-agent-dev-kit/agent/provider/ollama"
-	"github.com/urmzd/graph-agent-dev-kit/kg/kgtypes"
+	"github.com/urmzd/saige/agent/provider/ollama"
+	"github.com/urmzd/saige/kg/kgtypes"
 )
 
 // extractionResponse is the JSON schema returned by the LLM.

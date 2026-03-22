@@ -1,6 +1,6 @@
 package kg
 
-import "github.com/urmzd/graph-agent-dev-kit/kg/kgtypes"
+import "github.com/urmzd/saige/kg/kgtypes"
 
 // FactsToStrings converts facts to string representations.
 func FactsToStrings(facts []kgtypes.Fact) []string {

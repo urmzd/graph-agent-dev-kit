@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/urmzd/graph-agent-dev-kit/kg/kgtypes"
-	"github.com/urmzd/graph-agent-dev-kit/rag/graphretriever"
-	"github.com/urmzd/graph-agent-dev-kit/rag/memstore"
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
+	"github.com/urmzd/saige/kg/kgtypes"
+	"github.com/urmzd/saige/rag/graphretriever"
+	"github.com/urmzd/saige/rag/memstore"
+	"github.com/urmzd/saige/rag/ragtypes"
 )
 
 type mockGraph struct {

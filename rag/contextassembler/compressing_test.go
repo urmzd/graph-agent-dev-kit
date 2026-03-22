@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/urmzd/graph-agent-dev-kit/rag/contextassembler"
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
+	"github.com/urmzd/saige/rag/contextassembler"
+	"github.com/urmzd/saige/rag/ragtypes"
 )
 
 type mockLLM struct{}

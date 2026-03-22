@@ -13,8 +13,8 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	agentsdk "github.com/urmzd/graph-agent-dev-kit/agent"
-	"github.com/urmzd/graph-agent-dev-kit/agent/core"
+	agentsdk "github.com/urmzd/saige/agent"
+	"github.com/urmzd/saige/agent/core"
 )
 
 // Runner is a multi-turn interactive TUI runner that implements agentsdk.Runner.

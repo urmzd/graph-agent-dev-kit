@@ -10,11 +10,11 @@ import (
 	"log"
 	"time"
 
-	agentsdk "github.com/urmzd/graph-agent-dev-kit/agent"
-	"github.com/urmzd/graph-agent-dev-kit/agent/core"
-	"github.com/urmzd/graph-agent-dev-kit/agent/provider/fallback"
-	"github.com/urmzd/graph-agent-dev-kit/agent/provider/ollama"
-	"github.com/urmzd/graph-agent-dev-kit/agent/provider/retry"
+	agentsdk "github.com/urmzd/saige/agent"
+	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/provider/fallback"
+	"github.com/urmzd/saige/agent/provider/ollama"
+	"github.com/urmzd/saige/agent/provider/retry"
 )
 
 func main() {

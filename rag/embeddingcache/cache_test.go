@@ -5,8 +5,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/urmzd/graph-agent-dev-kit/rag/embeddingcache"
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
+	"github.com/urmzd/saige/rag/embeddingcache"
+	"github.com/urmzd/saige/rag/ragtypes"
 )
 
 type countingEmbedder struct {

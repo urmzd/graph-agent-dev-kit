@@ -9,7 +9,7 @@ import (
 
 	"github.com/dslipak/pdf"
 	"github.com/google/uuid"
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
+	"github.com/urmzd/saige/rag/ragtypes"
 )
 
 // PDF extracts text content from PDF documents, creating one section per page.

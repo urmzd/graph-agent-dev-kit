@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/urmzd/graph-agent-dev-kit/agent/core"
+	"github.com/urmzd/saige/agent/core"
 )
 
 func BenchmarkAddChild(b *testing.B) {

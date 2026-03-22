@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/urmzd/graph-agent-dev-kit/rag/embedderregistry"
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
+	"github.com/urmzd/saige/rag/embedderregistry"
+	"github.com/urmzd/saige/rag/ragtypes"
 )
 
 type stubEmbedder struct {

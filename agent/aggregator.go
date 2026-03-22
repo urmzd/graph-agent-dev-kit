@@ -3,7 +3,7 @@ package agent
 import (
 	"strings"
 
-	"github.com/urmzd/graph-agent-dev-kit/agent/core"
+	"github.com/urmzd/saige/agent/core"
 )
 
 // StreamAggregator accumulates deltas into a complete Message.

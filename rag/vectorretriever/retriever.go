@@ -5,7 +5,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
+	"github.com/urmzd/saige/rag/ragtypes"
 )
 
 // VectorRetriever embeds a query and delegates to store.SearchByEmbedding.

@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
+	"github.com/urmzd/saige/rag/ragtypes"
 )
 
 // Auto dispatches to the appropriate extractor based on MIME type.

@@ -5,10 +5,10 @@ import (
 	"strings"
 	"testing"
 
-	agentsdk "github.com/urmzd/graph-agent-dev-kit/agent"
-	"github.com/urmzd/graph-agent-dev-kit/agent/agenttest"
-	"github.com/urmzd/graph-agent-dev-kit/agent/core"
-	"github.com/urmzd/graph-agent-dev-kit/agent/tui"
+	agentsdk "github.com/urmzd/saige/agent"
+	"github.com/urmzd/saige/agent/agenttest"
+	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/tui"
 )
 
 func TestStreamVerbose(t *testing.T) {

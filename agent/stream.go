@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/urmzd/graph-agent-dev-kit/agent/core"
+	"github.com/urmzd/saige/agent/core"
 )
 
 // Resolution holds the consumer's decision for a marked tool call.

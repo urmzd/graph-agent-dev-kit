@@ -6,7 +6,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/urmzd/graph-agent-dev-kit/rag/hyde"
+	"github.com/urmzd/saige/rag/hyde"
 )
 
 type mockLLM struct {

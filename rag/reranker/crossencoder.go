@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
+	"github.com/urmzd/saige/rag/ragtypes"
 )
 
 // QueryDocPair represents a query-document pair for cross-encoder scoring.

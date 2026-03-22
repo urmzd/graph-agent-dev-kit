@@ -4,8 +4,8 @@ import (
 	"math"
 	"testing"
 
-	"github.com/urmzd/graph-agent-dev-kit/rag/rageval"
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
+	"github.com/urmzd/saige/rag/rageval"
+	"github.com/urmzd/saige/rag/ragtypes"
 )
 
 func TestContextPrecision(t *testing.T) {

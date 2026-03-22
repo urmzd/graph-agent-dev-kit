@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
+	"github.com/urmzd/saige/rag/ragtypes"
 )
 
 // Option configures a Cache.

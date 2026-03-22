@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
+	"github.com/urmzd/saige/rag/ragtypes"
 )
 
 // Retriever wraps an inner retriever and expands each hit with the full parent section text.

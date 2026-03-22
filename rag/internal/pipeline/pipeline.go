@@ -10,8 +10,8 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/urmzd/graph-agent-dev-kit/kg/kgtypes"
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
+	"github.com/urmzd/saige/kg/kgtypes"
+	"github.com/urmzd/saige/rag/ragtypes"
 )
 
 // Config holds the pipeline's dependencies.

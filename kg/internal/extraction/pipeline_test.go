@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/urmzd/graph-agent-dev-kit/kg/kgtypes"
+	"github.com/urmzd/saige/kg/kgtypes"
 )
 
 // mockExtractor implements kgtypes.Extractor for testing.

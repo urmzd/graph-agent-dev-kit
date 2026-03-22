@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/urmzd/graph-agent-dev-kit/agent/core"
+	"github.com/urmzd/saige/agent/core"
 )
 
 // Option configures a Tree during construction.

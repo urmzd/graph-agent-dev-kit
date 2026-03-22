@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/urmzd/graph-agent-dev-kit/rag/bm25retriever"
-	"github.com/urmzd/graph-agent-dev-kit/rag/memstore"
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
+	"github.com/urmzd/saige/rag/bm25retriever"
+	"github.com/urmzd/saige/rag/memstore"
+	"github.com/urmzd/saige/rag/ragtypes"
 )
 
 func makeDoc(uuid, title string, sections []ragtypes.Section) *ragtypes.Document {

@@ -3,7 +3,7 @@ package google
 import (
 	"context"
 
-	"github.com/urmzd/graph-agent-dev-kit/agent/core"
+	"github.com/urmzd/saige/agent/core"
 	"google.golang.org/genai"
 )
 

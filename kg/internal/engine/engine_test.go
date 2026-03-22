@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/urmzd/graph-agent-dev-kit/kg/kgtypes"
+	"github.com/urmzd/saige/kg/kgtypes"
 )
 
 // --- Mocks ---

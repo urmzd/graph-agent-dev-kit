@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
-	"github.com/urmzd/graph-agent-dev-kit/rag/vectorretriever"
+	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/vectorretriever"
 )
 
 type mockEmbedderRegistry struct {

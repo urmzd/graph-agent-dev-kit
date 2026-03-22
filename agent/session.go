@@ -6,7 +6,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/urmzd/graph-agent-dev-kit/agent/core"
+	"github.com/urmzd/saige/agent/core"
 )
 
 // Session represents a serializable agent conversation state.

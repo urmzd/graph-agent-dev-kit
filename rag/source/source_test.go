@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/urmzd/graph-agent-dev-kit/rag/source"
+	"github.com/urmzd/saige/rag/source"
 )
 
 func TestFilesystemFetch(t *testing.T) {

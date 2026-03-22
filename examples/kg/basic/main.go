@@ -16,9 +16,9 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/urmzd/graph-agent-dev-kit/agent/provider/ollama"
-	"github.com/urmzd/graph-agent-dev-kit/kg"
-	"github.com/urmzd/graph-agent-dev-kit/kg/kgtypes"
+	"github.com/urmzd/saige/agent/provider/ollama"
+	"github.com/urmzd/saige/kg"
+	"github.com/urmzd/saige/kg/kgtypes"
 )
 
 func main() {
@@ -31,7 +31,7 @@ func main() {
 
 	// 2. Create the knowledge graph.
 	graph, err := kg.NewGraph(ctx,
-		kg.WithSurrealDB("ws://localhost:8000", "graph-agent-dev-kit", "example", "root", "root"),
+		kg.WithSurrealDB("ws://localhost:8000", "saige", "example", "root", "root"),
 		kg.WithExtractor(kg.NewOllamaExtractor(ollamaClient)),
 		kg.WithEmbedder(kg.NewOllamaEmbedder(ollamaClient)),
 		kg.WithLogger(logger),

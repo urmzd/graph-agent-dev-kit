@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
+	"github.com/urmzd/saige/rag/ragtypes"
 )
 
 func BenchmarkBM25Index(b *testing.B) {

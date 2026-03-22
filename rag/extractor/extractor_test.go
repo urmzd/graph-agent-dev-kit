@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/urmzd/graph-agent-dev-kit/rag/extractor"
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
+	"github.com/urmzd/saige/rag/extractor"
+	"github.com/urmzd/saige/rag/ragtypes"
 )
 
 func TestPlainTextExtractor(t *testing.T) {

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
+	"github.com/urmzd/saige/rag/ragtypes"
 )
 
 // Store is a thread-safe in-memory document store with brute-force cosine similarity search.

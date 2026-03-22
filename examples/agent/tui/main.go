@@ -19,10 +19,10 @@ import (
 	"os/signal"
 
 	tea "github.com/charmbracelet/bubbletea"
-	agentsdk "github.com/urmzd/graph-agent-dev-kit/agent"
-	"github.com/urmzd/graph-agent-dev-kit/agent/core"
-	"github.com/urmzd/graph-agent-dev-kit/agent/provider/ollama"
-	"github.com/urmzd/graph-agent-dev-kit/agent/tui"
+	agentsdk "github.com/urmzd/saige/agent"
+	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/provider/ollama"
+	"github.com/urmzd/saige/agent/tui"
 )
 
 func main() {

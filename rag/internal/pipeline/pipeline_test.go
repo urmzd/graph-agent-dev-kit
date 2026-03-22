@@ -7,11 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/urmzd/graph-agent-dev-kit/rag/bm25retriever"
-	"github.com/urmzd/graph-agent-dev-kit/rag/internal/pipeline"
-	"github.com/urmzd/graph-agent-dev-kit/rag/memstore"
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
-	"github.com/urmzd/graph-agent-dev-kit/rag/vectorretriever"
+	"github.com/urmzd/saige/rag/bm25retriever"
+	"github.com/urmzd/saige/rag/internal/pipeline"
+	"github.com/urmzd/saige/rag/memstore"
+	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/vectorretriever"
 )
 
 type simpleExtractor struct{}

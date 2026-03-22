@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
-	"github.com/urmzd/graph-agent-dev-kit/rag/tokenizer"
+	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/tokenizer"
 )
 
 // Config holds recursive chunker parameters.

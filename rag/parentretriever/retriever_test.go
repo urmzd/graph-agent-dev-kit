@@ -4,9 +4,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/urmzd/graph-agent-dev-kit/rag/memstore"
-	"github.com/urmzd/graph-agent-dev-kit/rag/parentretriever"
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
+	"github.com/urmzd/saige/rag/memstore"
+	"github.com/urmzd/saige/rag/parentretriever"
+	"github.com/urmzd/saige/rag/ragtypes"
 )
 
 type mockRetriever struct {

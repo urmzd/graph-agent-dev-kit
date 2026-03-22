@@ -1,9 +1,9 @@
 package kg
 
 import (
-	"github.com/urmzd/graph-agent-dev-kit/agent/provider/ollama"
-	"github.com/urmzd/graph-agent-dev-kit/kg/internal/extraction"
-	"github.com/urmzd/graph-agent-dev-kit/kg/kgtypes"
+	"github.com/urmzd/saige/agent/provider/ollama"
+	"github.com/urmzd/saige/kg/internal/extraction"
+	"github.com/urmzd/saige/kg/kgtypes"
 )
 
 // NewOllamaExtractor creates an Extractor backed by an Ollama client.

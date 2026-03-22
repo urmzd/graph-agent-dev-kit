@@ -3,7 +3,7 @@ package agent
 import (
 	"context"
 
-	"github.com/urmzd/graph-agent-dev-kit/agent/core"
+	"github.com/urmzd/saige/agent/core"
 )
 
 // SubAgentDef defines a sub-agent that can be delegated to.

@@ -10,7 +10,7 @@ import (
 	surrealdbgo "github.com/surrealdb/surrealdb.go"
 	"github.com/surrealdb/surrealdb.go/pkg/models"
 
-	"github.com/urmzd/graph-agent-dev-kit/kg/kgtypes"
+	"github.com/urmzd/saige/kg/kgtypes"
 )
 
 var _ kgtypes.Store = (*Store)(nil)

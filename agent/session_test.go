@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/urmzd/graph-agent-dev-kit/agent/agenttest"
-	"github.com/urmzd/graph-agent-dev-kit/agent/core"
+	"github.com/urmzd/saige/agent/agenttest"
+	"github.com/urmzd/saige/agent/core"
 )
 
 func TestSaveAndLoadSession(t *testing.T) {

@@ -5,8 +5,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/urmzd/graph-agent-dev-kit/kg/kgtypes"
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
+	"github.com/urmzd/saige/kg/kgtypes"
+	"github.com/urmzd/saige/rag/ragtypes"
 )
 
 // Retriever retrieves search hits by searching a knowledge graph for facts

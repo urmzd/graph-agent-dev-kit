@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
-	"github.com/urmzd/graph-agent-dev-kit/rag/reranker"
+	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/reranker"
 )
 
 func TestMMRRerankerDiversity(t *testing.T) {

@@ -3,7 +3,7 @@ package tokenizer_test
 import (
 	"testing"
 
-	"github.com/urmzd/graph-agent-dev-kit/rag/tokenizer"
+	"github.com/urmzd/saige/rag/tokenizer"
 )
 
 func TestNewEncoding(t *testing.T) {

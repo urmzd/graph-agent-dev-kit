@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/urmzd/graph-agent-dev-kit/agent/core"
-	"github.com/urmzd/graph-agent-dev-kit/agent/tree"
+	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/tree"
 )
 
 // AgentConfig holds configuration for an Agent.

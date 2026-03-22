@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/urmzd/graph-agent-dev-kit/agent/core"
-	"github.com/urmzd/graph-agent-dev-kit/rag/ragtypes"
+	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/rag/ragtypes"
 )
 
 // --- Parameter types for SchemaFrom ---

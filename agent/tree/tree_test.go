@@ -5,8 +5,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/urmzd/graph-agent-dev-kit/agent/core"
-	"github.com/urmzd/graph-agent-dev-kit/agent/store/memwal"
+	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/store/memwal"
 )
 
 func TestNewTree(t *testing.T) {
