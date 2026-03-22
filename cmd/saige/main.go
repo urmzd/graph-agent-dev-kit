@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/urmzd/saige/agent"
-	"github.com/urmzd/saige/agent/core"
+	"github.com/urmzd/saige/agent/types"
 	"github.com/urmzd/saige/agent/provider/ollama"
 )
 
@@ -74,14 +74,14 @@ func runAgent(args []string) {
 			continue
 		}
 
-		stream := a.Invoke(ctx, []core.Message{core.NewUserMessage(input)})
+		stream := a.Invoke(ctx, []types.Message{types.NewUserMessage(input)})
 		for delta := range stream.Deltas() {
 			switch d := delta.(type) {
-			case core.TextContentDelta:
+			case types.TextContentDelta:
 				fmt.Print(d.Content)
-			case core.ErrorDelta:
+			case types.ErrorDelta:
 				fmt.Fprintf(os.Stderr, "\nerror: %v\n", d.Error)
-			case core.DoneDelta:
+			case types.DoneDelta:
 				fmt.Println()
 			}
 		}
