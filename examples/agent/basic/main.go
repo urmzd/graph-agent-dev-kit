@@ -15,7 +15,7 @@ import (
 
 func main() {
 	// Create Ollama client and adapter.
-	client := ollama.NewClient("http://localhost:11434", "llama3.2", "")
+	client := ollama.NewClient("http://localhost:11434", "qwen3.5:4b", "")
 	adapter := ollama.NewAdapter(client)
 
 	// Define an "add" tool that sums two numbers.
