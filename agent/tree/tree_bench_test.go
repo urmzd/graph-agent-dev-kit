@@ -1,0 +1,50 @@
+package tree
+
+import (
+	"fmt"
+	"testing"
+
+	"github.com/urmzd/graph-agent-dev-kit/agent/core"
+)
+
+func BenchmarkAddChild(b *testing.B) {
+	tr, _ := New(core.NewSystemMessage("system"))
+	root := tr.Root()
+
+	b.ResetTimer()
+	parent := root
+	for i := 0; i < b.N; i++ {
+		child, _ := tr.AddChild(parent.ID, core.NewUserMessage(fmt.Sprintf("msg-%d", i)))
+		parent = child
+	}
+}
+
+func BenchmarkFlattenBranch(b *testing.B) {
+	for _, depth := range []int{10, 100, 1000} {
+		b.Run(fmt.Sprintf("depth=%d", depth), func(b *testing.B) {
+			tr, _ := New(core.NewSystemMessage("system"))
+			parent := tr.Root()
+			for i := 0; i < depth; i++ {
+				child, _ := tr.AddChild(parent.ID, core.NewUserMessage(fmt.Sprintf("msg-%d", i)))
+				parent = child
+			}
+
+			branch := tr.Active()
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				tr.FlattenBranch(branch)
+			}
+		})
+	}
+}
+
+func BenchmarkBranch(b *testing.B) {
+	tr, _ := New(core.NewSystemMessage("system"))
+	root := tr.Root()
+	user, _ := tr.AddChild(root.ID, core.NewUserMessage("hello"))
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		tr.Branch(user.ID, fmt.Sprintf("branch-%d", i), core.NewUserMessage("branched"))
+	}
+}
