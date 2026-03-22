@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
 // QueryDocPair represents a query-document pair for cross-encoder scoring.
@@ -30,7 +30,7 @@ func NewCrossEncoder(scorer Scorer) *CrossEncoderReranker {
 }
 
 // Rerank scores each hit against the query using the cross-encoder and sorts by score.
-func (r *CrossEncoderReranker) Rerank(ctx context.Context, query string, hits []ragtypes.SearchHit) ([]ragtypes.SearchHit, error) {
+func (r *CrossEncoderReranker) Rerank(ctx context.Context, query string, hits []types.SearchHit) ([]types.SearchHit, error) {
 	if len(hits) == 0 {
 		return hits, nil
 	}
@@ -52,7 +52,7 @@ func (r *CrossEncoderReranker) Rerank(ctx context.Context, query string, hits []
 		return nil, fmt.Errorf("scorer returned %d scores for %d hits", len(scores), len(hits))
 	}
 
-	result := make([]ragtypes.SearchHit, len(hits))
+	result := make([]types.SearchHit, len(hits))
 	copy(result, hits)
 	for i := range result {
 		result[i].Score = scores[i]

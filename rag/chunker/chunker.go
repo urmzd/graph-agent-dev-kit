@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 	"github.com/urmzd/saige/rag/tokenizer"
 )
 
@@ -45,13 +45,13 @@ func estimateTokens(text string) int {
 }
 
 // Chunk splits long sections in the document into smaller ones.
-func (c *RecursiveChunker) Chunk(_ context.Context, doc *ragtypes.Document) (*ragtypes.Document, error) {
-	var newSections []ragtypes.Section
+func (c *RecursiveChunker) Chunk(_ context.Context, doc *types.Document) (*types.Document, error) {
+	var newSections []types.Section
 	idx := 0
 
 	for _, sec := range doc.Sections {
 		for _, v := range sec.Variants {
-			if v.ContentType != ragtypes.ContentText || estimateTokens(v.Text) <= c.cfg.MaxTokens {
+			if v.ContentType != types.ContentText || estimateTokens(v.Text) <= c.cfg.MaxTokens {
 				sec.Index = idx
 				newSections = append(newSections, sec)
 				idx++
@@ -68,12 +68,12 @@ func (c *RecursiveChunker) Chunk(_ context.Context, doc *ragtypes.Document) (*ra
 				}
 				secUUID := uuid.New().String()
 				varUUID := uuid.New().String()
-				newSections = append(newSections, ragtypes.Section{
+				newSections = append(newSections, types.Section{
 					UUID:         secUUID,
 					DocumentUUID: doc.UUID,
 					Index:        idx,
 					Heading:      sec.Heading,
-					Variants: []ragtypes.ContentVariant{{
+					Variants: []types.ContentVariant{{
 						UUID:        varUUID,
 						SectionUUID: secUUID,
 						ContentType: v.ContentType,

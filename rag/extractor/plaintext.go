@@ -7,21 +7,21 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
 // PlainText extracts text documents by splitting on paragraph boundaries.
 type PlainText struct{}
 
 // Extract splits raw text data into sections by double-newline paragraph boundaries.
-func (e *PlainText) Extract(_ context.Context, raw *ragtypes.RawDocument) (*ragtypes.Document, error) {
+func (e *PlainText) Extract(_ context.Context, raw *types.RawDocument) (*types.Document, error) {
 	text := string(raw.Data)
 	docUUID := uuid.New().String()
 	now := time.Now()
 
 	paragraphs := splitParagraphs(text)
 
-	sections := make([]ragtypes.Section, 0, len(paragraphs))
+	sections := make([]types.Section, 0, len(paragraphs))
 	for i, para := range paragraphs {
 		para = strings.TrimSpace(para)
 		if para == "" {
@@ -29,14 +29,14 @@ func (e *PlainText) Extract(_ context.Context, raw *ragtypes.RawDocument) (*ragt
 		}
 		secUUID := uuid.New().String()
 		varUUID := uuid.New().String()
-		sections = append(sections, ragtypes.Section{
+		sections = append(sections, types.Section{
 			UUID:         secUUID,
 			DocumentUUID: docUUID,
 			Index:        i,
-			Variants: []ragtypes.ContentVariant{{
+			Variants: []types.ContentVariant{{
 				UUID:        varUUID,
 				SectionUUID: secUUID,
-				ContentType: ragtypes.ContentText,
+				ContentType: types.ContentText,
 				MIMEType:    "text/plain",
 				Text:        para,
 				Metadata:    raw.Metadata,
@@ -44,7 +44,7 @@ func (e *PlainText) Extract(_ context.Context, raw *ragtypes.RawDocument) (*ragt
 		})
 	}
 
-	return &ragtypes.Document{
+	return &types.Document{
 		UUID:      docUUID,
 		SourceURI: raw.SourceURI,
 		Title:     titleFromText(text),

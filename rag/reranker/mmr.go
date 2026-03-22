@@ -5,7 +5,7 @@ import (
 	"context"
 	"math"
 
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
 // MMRConfig holds MMR reranker parameters.
@@ -27,12 +27,12 @@ func NewMMR(lambda float64) *MMRReranker {
 }
 
 // Rerank selects hits greedily to maximize relevance while minimizing redundancy.
-func (r *MMRReranker) Rerank(_ context.Context, _ string, hits []ragtypes.SearchHit) ([]ragtypes.SearchHit, error) {
+func (r *MMRReranker) Rerank(_ context.Context, _ string, hits []types.SearchHit) ([]types.SearchHit, error) {
 	if len(hits) <= 1 {
 		return hits, nil
 	}
 
-	selected := make([]ragtypes.SearchHit, 0, len(hits))
+	selected := make([]types.SearchHit, 0, len(hits))
 	remaining := make([]int, len(hits))
 	for i := range remaining {
 		remaining[i] = i

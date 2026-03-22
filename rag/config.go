@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/urmzd/saige/kg/kgtypes"
+	knowledgetypes "github.com/urmzd/saige/knowledge/types"
 	"github.com/urmzd/saige/rag/bm25retriever"
 	"github.com/urmzd/saige/rag/chunker"
 	"github.com/urmzd/saige/rag/contextassembler"
 	"github.com/urmzd/saige/rag/hyde"
 	"github.com/urmzd/saige/rag/internal/pipeline"
 	"github.com/urmzd/saige/rag/parentretriever"
-	"github.com/urmzd/saige/rag/ragtypes"
+	ragtypes "github.com/urmzd/saige/rag/types"
 	"github.com/urmzd/saige/rag/reranker"
 	"github.com/urmzd/saige/rag/vectorretriever"
 )
@@ -23,7 +23,7 @@ type Config struct {
 	ContentExtractor ragtypes.ContentExtractor
 	Chunker          ragtypes.Chunker
 	Embedders        ragtypes.EmbedderRegistry
-	KGGraph          kgtypes.Graph
+	Graph          knowledgetypes.Graph
 	DedupBehavior    ragtypes.DedupBehavior
 	StoreOriginals   bool
 	Logger           *slog.Logger
@@ -71,9 +71,9 @@ func WithEmbedders(reg ragtypes.EmbedderRegistry) Option {
 	return func(c *Config) { c.Embedders = reg }
 }
 
-// WithKGGraph sets the kgdk graph for entity extraction.
-func WithKGGraph(g kgtypes.Graph) Option {
-	return func(c *Config) { c.KGGraph = g }
+// WithGraph sets the knowledge graph for entity extraction.
+func WithGraph(g knowledgetypes.Graph) Option {
+	return func(c *Config) { c.Graph = g }
 }
 
 // WithDedupBehavior sets the deduplication behavior.
@@ -246,7 +246,7 @@ func NewPipeline(opts ...Option) (ragtypes.Pipeline, error) {
 		ContentExtractor: cfg.ContentExtractor,
 		Chunker:          cfg.Chunker,
 		Embedders:        cfg.Embedders,
-		KGGraph:          cfg.KGGraph,
+		Graph:          cfg.Graph,
 		DedupBehavior:    cfg.DedupBehavior,
 		StoreOriginals:   cfg.StoreOriginals,
 		Logger:           cfg.Logger,

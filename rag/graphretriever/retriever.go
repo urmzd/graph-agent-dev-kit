@@ -1,23 +1,23 @@
-// Package graphretriever implements a Retriever backed by a kgdk knowledge graph.
+// Package graphretriever implements a Retriever backed by a knowledge graph.
 package graphretriever
 
 import (
 	"context"
 	"fmt"
 
-	"github.com/urmzd/saige/kg/kgtypes"
-	"github.com/urmzd/saige/rag/ragtypes"
+	knowledgetypes "github.com/urmzd/saige/knowledge/types"
+	ragtypes "github.com/urmzd/saige/rag/types"
 )
 
 // Retriever retrieves search hits by searching a knowledge graph for facts
 // and resolving their provenance back to document variants via episode source/name.
 type Retriever struct {
-	graph kgtypes.Graph
+	graph knowledgetypes.Graph
 	store ragtypes.Store
 }
 
 // New creates a graph retriever with the given knowledge graph and document store.
-func New(graph kgtypes.Graph, store ragtypes.Store) *Retriever {
+func New(graph knowledgetypes.Graph, store ragtypes.Store) *Retriever {
 	return &Retriever{graph: graph, store: store}
 }
 
@@ -31,7 +31,7 @@ func (r *Retriever) Retrieve(ctx context.Context, query string, opts *ragtypes.S
 		limit = opts.Limit
 	}
 
-	var searchOpts []kgtypes.SearchOption
+	var searchOpts []knowledgetypes.SearchOption
 	result, err := r.graph.SearchFacts(ctx, query, searchOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("search facts: %w", err)
@@ -57,7 +57,7 @@ func (r *Retriever) Retrieve(ctx context.Context, query string, opts *ragtypes.S
 
 // resolveFactToHit tries to resolve a fact back to a store variant via provenance episodes.
 // Falls back to a synthetic hit from the fact text.
-func (r *Retriever) resolveFactToHit(ctx context.Context, fact kgtypes.Fact, score float64, opts *ragtypes.SearchOptions) ragtypes.SearchHit {
+func (r *Retriever) resolveFactToHit(ctx context.Context, fact knowledgetypes.Fact, score float64, opts *ragtypes.SearchOptions) ragtypes.SearchHit {
 	episodes, err := r.graph.GetFactProvenance(ctx, fact.UUID)
 	if err == nil {
 		for _, ep := range episodes {

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 	"github.com/urmzd/saige/rag/vectorretriever"
 )
 
@@ -14,8 +14,8 @@ type mockEmbedderRegistry struct {
 	err    error
 }
 
-func (m *mockEmbedderRegistry) Register(_ ragtypes.ContentType, _ ragtypes.VariantEmbedder) {}
-func (m *mockEmbedderRegistry) Embed(_ context.Context, variants []ragtypes.ContentVariant) ([][]float32, error) {
+func (m *mockEmbedderRegistry) Register(_ types.ContentType, _ types.VariantEmbedder) {}
+func (m *mockEmbedderRegistry) Embed(_ context.Context, variants []types.ContentVariant) ([][]float32, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -23,21 +23,21 @@ func (m *mockEmbedderRegistry) Embed(_ context.Context, variants []ragtypes.Cont
 }
 
 type mockStore struct {
-	ragtypes.Store
-	searchResult    []ragtypes.SearchHit
+	types.Store
+	searchResult    []types.SearchHit
 	searchErr       error
 	lastEmbedding   []float32
 }
 
-func (m *mockStore) SearchByEmbedding(_ context.Context, embedding []float32, _ *ragtypes.SearchOptions) ([]ragtypes.SearchHit, error) {
+func (m *mockStore) SearchByEmbedding(_ context.Context, embedding []float32, _ *types.SearchOptions) ([]types.SearchHit, error) {
 	m.lastEmbedding = embedding
 	return m.searchResult, m.searchErr
 }
 
 func TestRetrieveBasic(t *testing.T) {
 	embeddings := [][]float32{{0.1, 0.2, 0.3}}
-	expectedHits := []ragtypes.SearchHit{
-		{Variant: ragtypes.ContentVariant{UUID: "v1", Text: "result"}, Score: 0.9},
+	expectedHits := []types.SearchHit{
+		{Variant: types.ContentVariant{UUID: "v1", Text: "result"}, Score: 0.9},
 	}
 
 	store := &mockStore{searchResult: expectedHits}

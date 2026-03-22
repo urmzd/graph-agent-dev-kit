@@ -5,15 +5,15 @@ import (
 	"testing"
 
 	"github.com/urmzd/saige/rag/rageval"
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
 func TestContextPrecision(t *testing.T) {
-	hits := []ragtypes.SearchHit{
-		{Variant: ragtypes.ContentVariant{UUID: "a"}},
-		{Variant: ragtypes.ContentVariant{UUID: "b"}},
-		{Variant: ragtypes.ContentVariant{UUID: "c"}},
-		{Variant: ragtypes.ContentVariant{UUID: "d"}},
+	hits := []types.SearchHit{
+		{Variant: types.ContentVariant{UUID: "a"}},
+		{Variant: types.ContentVariant{UUID: "b"}},
+		{Variant: types.ContentVariant{UUID: "c"}},
+		{Variant: types.ContentVariant{UUID: "d"}},
 	}
 
 	// All relevant at positions 0, 2.
@@ -30,9 +30,9 @@ func TestContextPrecision(t *testing.T) {
 }
 
 func TestContextPrecisionPerfect(t *testing.T) {
-	hits := []ragtypes.SearchHit{
-		{Variant: ragtypes.ContentVariant{UUID: "a"}},
-		{Variant: ragtypes.ContentVariant{UUID: "b"}},
+	hits := []types.SearchHit{
+		{Variant: types.ContentVariant{UUID: "a"}},
+		{Variant: types.ContentVariant{UUID: "b"}},
 	}
 	precision := rageval.ContextPrecision(hits, []string{"a", "b"})
 	if math.Abs(precision-1.0) > 0.001 {
@@ -41,10 +41,10 @@ func TestContextPrecisionPerfect(t *testing.T) {
 }
 
 func TestContextRecall(t *testing.T) {
-	hits := []ragtypes.SearchHit{
-		{Variant: ragtypes.ContentVariant{UUID: "a"}},
-		{Variant: ragtypes.ContentVariant{UUID: "b"}},
-		{Variant: ragtypes.ContentVariant{UUID: "c"}},
+	hits := []types.SearchHit{
+		{Variant: types.ContentVariant{UUID: "a"}},
+		{Variant: types.ContentVariant{UUID: "b"}},
+		{Variant: types.ContentVariant{UUID: "c"}},
 	}
 
 	recall := rageval.ContextRecall(hits, []string{"a", "c", "d"})
@@ -56,9 +56,9 @@ func TestContextRecall(t *testing.T) {
 }
 
 func TestContextRecallPerfect(t *testing.T) {
-	hits := []ragtypes.SearchHit{
-		{Variant: ragtypes.ContentVariant{UUID: "a"}},
-		{Variant: ragtypes.ContentVariant{UUID: "b"}},
+	hits := []types.SearchHit{
+		{Variant: types.ContentVariant{UUID: "a"}},
+		{Variant: types.ContentVariant{UUID: "b"}},
 	}
 	recall := rageval.ContextRecall(hits, []string{"a", "b"})
 	if math.Abs(recall-1.0) > 0.001 {
@@ -67,8 +67,8 @@ func TestContextRecallPerfect(t *testing.T) {
 }
 
 func TestContextRecallNoRelevant(t *testing.T) {
-	hits := []ragtypes.SearchHit{
-		{Variant: ragtypes.ContentVariant{UUID: "a"}},
+	hits := []types.SearchHit{
+		{Variant: types.ContentVariant{UUID: "a"}},
 	}
 	recall := rageval.ContextRecall(hits, []string{})
 	if recall != 0 {

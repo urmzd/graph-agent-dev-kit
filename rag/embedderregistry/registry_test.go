@@ -5,14 +5,14 @@ import (
 	"testing"
 
 	"github.com/urmzd/saige/rag/embedderregistry"
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
 type stubEmbedder struct {
 	dim int
 }
 
-func (s *stubEmbedder) Embed(_ context.Context, variants []ragtypes.ContentVariant) ([][]float32, error) {
+func (s *stubEmbedder) Embed(_ context.Context, variants []types.ContentVariant) ([][]float32, error) {
 	result := make([][]float32, len(variants))
 	for i := range variants {
 		result[i] = make([]float32, s.dim)
@@ -23,13 +23,13 @@ func (s *stubEmbedder) Embed(_ context.Context, variants []ragtypes.ContentVaria
 
 func TestRegistryDispatch(t *testing.T) {
 	r := embedderregistry.New()
-	r.Register(ragtypes.ContentText, &stubEmbedder{dim: 3})
-	r.Register(ragtypes.ContentImage, &stubEmbedder{dim: 5})
+	r.Register(types.ContentText, &stubEmbedder{dim: 3})
+	r.Register(types.ContentImage, &stubEmbedder{dim: 5})
 
-	variants := []ragtypes.ContentVariant{
-		{UUID: "v1", ContentType: ragtypes.ContentText, Text: "hello"},
-		{UUID: "v2", ContentType: ragtypes.ContentImage, Text: "img"},
-		{UUID: "v3", ContentType: ragtypes.ContentText, Text: "world"},
+	variants := []types.ContentVariant{
+		{UUID: "v1", ContentType: types.ContentText, Text: "hello"},
+		{UUID: "v2", ContentType: types.ContentImage, Text: "img"},
+		{UUID: "v3", ContentType: types.ContentText, Text: "world"},
 	}
 
 	embeddings, err := r.Embed(context.Background(), variants)
@@ -58,8 +58,8 @@ func TestRegistryDispatch(t *testing.T) {
 func TestRegistryFallback(t *testing.T) {
 	r := embedderregistry.New(embedderregistry.WithFallback(&stubEmbedder{dim: 7}))
 
-	variants := []ragtypes.ContentVariant{
-		{UUID: "v1", ContentType: ragtypes.ContentAudio, Text: "audio data"},
+	variants := []types.ContentVariant{
+		{UUID: "v1", ContentType: types.ContentAudio, Text: "audio data"},
 	}
 
 	embeddings, err := r.Embed(context.Background(), variants)
@@ -75,8 +75,8 @@ func TestRegistryFallback(t *testing.T) {
 func TestRegistryNoEmbedder(t *testing.T) {
 	r := embedderregistry.New() // no registered embedders, no fallback
 
-	variants := []ragtypes.ContentVariant{
-		{UUID: "v1", ContentType: ragtypes.ContentText, Text: "hello"},
+	variants := []types.ContentVariant{
+		{UUID: "v1", ContentType: types.ContentText, Text: "hello"},
 	}
 
 	_, err := r.Embed(context.Background(), variants)
@@ -99,9 +99,9 @@ func TestRegistryEmpty(t *testing.T) {
 func TestNewTextOnly(t *testing.T) {
 	r := embedderregistry.NewTextOnly(&stubEmbedder{dim: 4})
 
-	variants := []ragtypes.ContentVariant{
-		{UUID: "v1", ContentType: ragtypes.ContentText, Text: "text"},
-		{UUID: "v2", ContentType: ragtypes.ContentImage, Text: "image"},
+	variants := []types.ContentVariant{
+		{UUID: "v1", ContentType: types.ContentText, Text: "text"},
+		{UUID: "v2", ContentType: types.ContentImage, Text: "image"},
 	}
 
 	embeddings, err := r.Embed(context.Background(), variants)

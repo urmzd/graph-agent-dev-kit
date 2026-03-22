@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/urmzd/saige/rag/contextassembler"
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
 type mockLLM struct{}
@@ -28,23 +28,23 @@ func (m *mockLLM) Generate(_ context.Context, prompt string) (string, error) {
 }
 
 func TestCompressingAssembler(t *testing.T) {
-	hits := []ragtypes.SearchHit{
+	hits := []types.SearchHit{
 		{
-			Variant: ragtypes.ContentVariant{
+			Variant: types.ContentVariant{
 				UUID: "v1",
 				Text: "First sentence. Second sentence. Third sentence.",
 			},
-			Provenance: ragtypes.Provenance{
+			Provenance: types.Provenance{
 				DocumentUUID: "d1",
 				SourceURI:    "http://example.com/1",
 			},
 		},
 		{
-			Variant: ragtypes.ContentVariant{
+			Variant: types.ContentVariant{
 				UUID: "v2",
 				Text: "Another document. With more text.",
 			},
-			Provenance: ragtypes.Provenance{
+			Provenance: types.Provenance{
 				DocumentUUID: "d2",
 				SourceURI:    "http://example.com/2",
 			},
@@ -81,14 +81,14 @@ func TestCompressingAssembler(t *testing.T) {
 func TestCompressingAssemblerTokenLimit(t *testing.T) {
 	// Create hits with very long text that exceeds token limit.
 	longText := strings.Repeat("word ", 5000) // ~25000 chars
-	hits := []ragtypes.SearchHit{
+	hits := []types.SearchHit{
 		{
-			Variant:    ragtypes.ContentVariant{UUID: "v1", Text: longText},
-			Provenance: ragtypes.Provenance{DocumentUUID: "d1"},
+			Variant:    types.ContentVariant{UUID: "v1", Text: longText},
+			Provenance: types.Provenance{DocumentUUID: "d1"},
 		},
 		{
-			Variant:    ragtypes.ContentVariant{UUID: "v2", Text: "short text"},
-			Provenance: ragtypes.Provenance{DocumentUUID: "d2"},
+			Variant:    types.ContentVariant{UUID: "v2", Text: "short text"},
+			Provenance: types.Provenance{DocumentUUID: "d2"},
 		},
 	}
 

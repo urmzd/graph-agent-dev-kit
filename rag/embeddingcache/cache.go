@@ -1,4 +1,4 @@
-// Package embeddingcache provides an LRU caching decorator for ragtypes.VariantEmbedder.
+// Package embeddingcache provides an LRU caching decorator for types.VariantEmbedder.
 package embeddingcache
 
 import (
@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
 // Option configures a Cache.
@@ -31,7 +31,7 @@ type entry struct {
 
 // Cache wraps a VariantEmbedder with LRU caching keyed by content hash.
 type Cache struct {
-	inner   ragtypes.VariantEmbedder
+	inner   types.VariantEmbedder
 	mu      sync.Mutex
 	entries map[string]*list.Element
 	lru     *list.List
@@ -39,7 +39,7 @@ type Cache struct {
 }
 
 // New creates a caching VariantEmbedder decorator.
-func New(inner ragtypes.VariantEmbedder, opts ...Option) *Cache {
+func New(inner types.VariantEmbedder, opts ...Option) *Cache {
 	c := &Cache{
 		inner:   inner,
 		entries: make(map[string]*list.Element),
@@ -54,7 +54,7 @@ func New(inner ragtypes.VariantEmbedder, opts ...Option) *Cache {
 
 // Embed returns cached embeddings for known variants and delegates to the inner
 // embedder for cache misses. Results are stored in the cache with LRU eviction.
-func (c *Cache) Embed(ctx context.Context, variants []ragtypes.ContentVariant) ([][]float32, error) {
+func (c *Cache) Embed(ctx context.Context, variants []types.ContentVariant) ([][]float32, error) {
 	if len(variants) == 0 {
 		return nil, nil
 	}
@@ -81,7 +81,7 @@ func (c *Cache) Embed(ctx context.Context, variants []ragtypes.ContentVariant) (
 	}
 
 	// Build miss batch and embed.
-	missBatch := make([]ragtypes.ContentVariant, len(missIndices))
+	missBatch := make([]types.ContentVariant, len(missIndices))
 	for i, idx := range missIndices {
 		missBatch[i] = variants[idx]
 	}
@@ -126,7 +126,7 @@ func (c *Cache) put(key string, embedding []float32) {
 	}
 }
 
-func cacheKey(v ragtypes.ContentVariant) string {
+func cacheKey(v types.ContentVariant) string {
 	h := sha256.New()
 	fmt.Fprintf(h, "%s:%s", v.ContentType, v.Text)
 	return hex.EncodeToString(h.Sum(nil))

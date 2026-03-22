@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
 // SemanticConfig holds semantic chunker parameters.
@@ -30,11 +30,11 @@ func DefaultSemanticConfig() *SemanticConfig {
 // drop below a similarity threshold.
 type SemanticChunker struct {
 	cfg       SemanticConfig
-	embedders ragtypes.EmbedderRegistry
+	embedders types.EmbedderRegistry
 }
 
 // NewSemantic creates a semantic chunker. If cfg is nil, defaults are used.
-func NewSemantic(embedders ragtypes.EmbedderRegistry, cfg *SemanticConfig) *SemanticChunker {
+func NewSemantic(embedders types.EmbedderRegistry, cfg *SemanticConfig) *SemanticChunker {
 	if cfg == nil {
 		cfg = DefaultSemanticConfig()
 	}
@@ -42,13 +42,13 @@ func NewSemantic(embedders ragtypes.EmbedderRegistry, cfg *SemanticConfig) *Sema
 }
 
 // Chunk splits document sections using semantic similarity between sentences.
-func (c *SemanticChunker) Chunk(ctx context.Context, doc *ragtypes.Document) (*ragtypes.Document, error) {
-	var newSections []ragtypes.Section
+func (c *SemanticChunker) Chunk(ctx context.Context, doc *types.Document) (*types.Document, error) {
+	var newSections []types.Section
 	idx := 0
 
 	for _, sec := range doc.Sections {
 		for _, v := range sec.Variants {
-			if v.ContentType != ragtypes.ContentText || estimateTokens(v.Text) <= c.cfg.MinTokens {
+			if v.ContentType != types.ContentText || estimateTokens(v.Text) <= c.cfg.MinTokens {
 				sec.Index = idx
 				newSections = append(newSections, sec)
 				idx++
@@ -67,12 +67,12 @@ func (c *SemanticChunker) Chunk(ctx context.Context, doc *ragtypes.Document) (*r
 				}
 				secUUID := uuid.New().String()
 				varUUID := uuid.New().String()
-				newSections = append(newSections, ragtypes.Section{
+				newSections = append(newSections, types.Section{
 					UUID:         secUUID,
 					DocumentUUID: doc.UUID,
 					Index:        idx,
 					Heading:      sec.Heading,
-					Variants: []ragtypes.ContentVariant{{
+					Variants: []types.ContentVariant{{
 						UUID:        varUUID,
 						SectionUUID: secUUID,
 						ContentType: v.ContentType,
@@ -98,10 +98,10 @@ func (c *SemanticChunker) splitSemantic(ctx context.Context, text string) ([]str
 	}
 
 	// Embed each sentence.
-	variants := make([]ragtypes.ContentVariant, len(sentences))
+	variants := make([]types.ContentVariant, len(sentences))
 	for i, s := range sentences {
-		variants[i] = ragtypes.ContentVariant{
-			ContentType: ragtypes.ContentText,
+		variants[i] = types.ContentVariant{
+			ContentType: types.ContentText,
 			Text:        s,
 		}
 	}

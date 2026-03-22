@@ -1,4 +1,4 @@
-// Package pipeline implements the ragdk Pipeline interface.
+// Package pipeline implements the RAG Pipeline interface.
 package pipeline
 
 import (
@@ -10,8 +10,8 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/urmzd/saige/kg/kgtypes"
-	"github.com/urmzd/saige/rag/ragtypes"
+	knowledgetypes "github.com/urmzd/saige/knowledge/types"
+	ragtypes "github.com/urmzd/saige/rag/types"
 )
 
 // Config holds the pipeline's dependencies.
@@ -20,7 +20,7 @@ type Config struct {
 	ContentExtractor ragtypes.ContentExtractor
 	Chunker          ragtypes.Chunker
 	Embedders        ragtypes.EmbedderRegistry
-	KGGraph          kgtypes.Graph
+	Graph          knowledgetypes.Graph
 	DedupBehavior    ragtypes.DedupBehavior
 	StoreOriginals   bool
 	Logger           *slog.Logger
@@ -112,7 +112,7 @@ func (p *pipelineImpl) Ingest(ctx context.Context, raw *ragtypes.RawDocument) (*
 		}
 	}
 
-	if p.cfg.KGGraph != nil {
+	if p.cfg.Graph != nil {
 		for _, sec := range doc.Sections {
 			for _, v := range sec.Variants {
 				if v.ContentType != ragtypes.ContentText || v.Text == "" {
@@ -122,7 +122,7 @@ func (p *pipelineImpl) Ingest(ctx context.Context, raw *ragtypes.RawDocument) (*
 				if name == "" {
 					name = fmt.Sprintf("section-%d", sec.Index)
 				}
-				_, err := p.cfg.KGGraph.IngestEpisode(ctx, &kgtypes.EpisodeInput{
+				_, err := p.cfg.Graph.IngestEpisode(ctx, &knowledgetypes.EpisodeInput{
 					Name:    name,
 					Body:    v.Text,
 					Source:  doc.SourceURI,
@@ -134,7 +134,7 @@ func (p *pipelineImpl) Ingest(ctx context.Context, raw *ragtypes.RawDocument) (*
 					},
 				})
 				if err != nil {
-					p.cfg.Logger.WarnContext(ctx, "kgdk ingest failed",
+					p.cfg.Logger.WarnContext(ctx, "kg ingest failed",
 						"section", sec.UUID, "error", err)
 				}
 			}

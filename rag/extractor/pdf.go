@@ -9,14 +9,14 @@ import (
 
 	"github.com/dslipak/pdf"
 	"github.com/google/uuid"
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
 // PDF extracts text content from PDF documents, creating one section per page.
 type PDF struct{}
 
 // Extract parses a PDF and creates sections from each page's text content.
-func (e *PDF) Extract(_ context.Context, raw *ragtypes.RawDocument) (*ragtypes.Document, error) {
+func (e *PDF) Extract(_ context.Context, raw *types.RawDocument) (*types.Document, error) {
 	reader, err := pdf.NewReader(bytes.NewReader(raw.Data), int64(len(raw.Data)))
 	if err != nil {
 		return nil, fmt.Errorf("parse pdf: %w", err)
@@ -26,7 +26,7 @@ func (e *PDF) Extract(_ context.Context, raw *ragtypes.RawDocument) (*ragtypes.D
 	now := time.Now()
 	numPages := reader.NumPage()
 
-	sections := make([]ragtypes.Section, 0, numPages)
+	sections := make([]types.Section, 0, numPages)
 	for i := 1; i <= numPages; i++ {
 		page := reader.Page(i)
 		if page.V.IsNull() {
@@ -43,15 +43,15 @@ func (e *PDF) Extract(_ context.Context, raw *ragtypes.RawDocument) (*ragtypes.D
 
 		secUUID := uuid.New().String()
 		varUUID := uuid.New().String()
-		sections = append(sections, ragtypes.Section{
+		sections = append(sections, types.Section{
 			UUID:         secUUID,
 			DocumentUUID: docUUID,
 			Index:        i - 1,
 			Heading:      fmt.Sprintf("Page %d", i),
-			Variants: []ragtypes.ContentVariant{{
+			Variants: []types.ContentVariant{{
 				UUID:        varUUID,
 				SectionUUID: secUUID,
-				ContentType: ragtypes.ContentText,
+				ContentType: types.ContentText,
 				MIMEType:    "application/pdf",
 				Text:        text,
 				Metadata:    raw.Metadata,
@@ -64,7 +64,7 @@ func (e *PDF) Extract(_ context.Context, raw *ragtypes.RawDocument) (*ragtypes.D
 		title = titleFromText(sections[0].Variants[0].Text)
 	}
 
-	return &ragtypes.Document{
+	return &types.Document{
 		UUID:      docUUID,
 		SourceURI: raw.SourceURI,
 		Title:     title,

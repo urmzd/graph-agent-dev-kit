@@ -5,12 +5,12 @@ import (
 	"testing"
 
 	"github.com/urmzd/saige/rag/extractor"
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
 func TestPlainTextExtractor(t *testing.T) {
 	ext := &extractor.PlainText{}
-	raw := &ragtypes.RawDocument{
+	raw := &types.RawDocument{
 		SourceURI: "test://doc.txt",
 		MIMEType:  "text/plain",
 		Data:      []byte("First paragraph.\n\nSecond paragraph.\n\nThird paragraph."),
@@ -33,14 +33,14 @@ func TestPlainTextExtractor(t *testing.T) {
 	if doc.Sections[0].Variants[0].Text != "First paragraph." {
 		t.Errorf("unexpected first section text: %q", doc.Sections[0].Variants[0].Text)
 	}
-	if doc.Sections[0].Variants[0].ContentType != ragtypes.ContentText {
+	if doc.Sections[0].Variants[0].ContentType != types.ContentText {
 		t.Errorf("expected ContentText, got %q", doc.Sections[0].Variants[0].ContentType)
 	}
 }
 
 func TestPlainTextSingleParagraph(t *testing.T) {
 	ext := &extractor.PlainText{}
-	raw := &ragtypes.RawDocument{
+	raw := &types.RawDocument{
 		Data: []byte("Just one line of text."),
 	}
 
@@ -56,7 +56,7 @@ func TestPlainTextSingleParagraph(t *testing.T) {
 
 func TestHTMLExtractor(t *testing.T) {
 	ext := &extractor.HTML{}
-	raw := &ragtypes.RawDocument{
+	raw := &types.RawDocument{
 		SourceURI: "test://page.html",
 		MIMEType:  "text/html",
 		Data: []byte(`<!DOCTYPE html>
@@ -97,7 +97,7 @@ func TestHTMLExtractor(t *testing.T) {
 
 func TestHTMLSkipsScripts(t *testing.T) {
 	ext := &extractor.HTML{}
-	raw := &ragtypes.RawDocument{
+	raw := &types.RawDocument{
 		Data: []byte(`<html><body>
 <p>Visible text.</p>
 <script>var x = 1;</script>
@@ -137,7 +137,7 @@ func TestAutoExtractor(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			raw := &ragtypes.RawDocument{
+			raw := &types.RawDocument{
 				MIMEType: tt.mime,
 				Data:     []byte(tt.data),
 			}
@@ -155,7 +155,7 @@ func TestAutoExtractor(t *testing.T) {
 func TestPlainTextMetadata(t *testing.T) {
 	ext := &extractor.PlainText{}
 	meta := map[string]string{"author": "test"}
-	raw := &ragtypes.RawDocument{
+	raw := &types.RawDocument{
 		Data:     []byte("content"),
 		Metadata: meta,
 	}

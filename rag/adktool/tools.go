@@ -1,4 +1,4 @@
-// Package adktool provides agent core.Tool implementations for rag Pipeline operations.
+// Package adktool provides agent Tool implementations for RAG Pipeline operations.
 package adktool
 
 import (
@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/urmzd/saige/agent/core"
-	"github.com/urmzd/saige/rag/ragtypes"
+	agenttypes "github.com/urmzd/saige/agent/types"
+	ragtypes "github.com/urmzd/saige/rag/types"
 )
 
 // --- Parameter types for SchemaFrom ---
@@ -45,11 +45,11 @@ type SearchTool struct {
 	pipeline ragtypes.Pipeline
 }
 
-func (t *SearchTool) Definition() core.ToolDef {
-	return core.ToolDef{
+func (t *SearchTool) Definition() agenttypes.ToolDef {
+	return agenttypes.ToolDef{
 		Name:        "rag_search",
 		Description: "Search the knowledge base. Returns scored hits with provenance metadata (no full content — use rag_lookup to dereference).",
-		Parameters:  core.SchemaFrom[searchParams](),
+		Parameters:  agenttypes.SchemaFrom[searchParams](),
 	}
 }
 
@@ -67,14 +67,14 @@ func (t *SearchTool) Execute(ctx context.Context, args map[string]any) (string, 
 		opts = append(opts, ragtypes.WithMinScore(minScore))
 	}
 	if ctRaw, ok := args["content_types"].([]any); ok {
-		var types []ragtypes.ContentType
+		var ctypes []ragtypes.ContentType
 		for _, ct := range ctRaw {
 			if s, ok := ct.(string); ok {
-				types = append(types, ragtypes.ContentType(s))
+				ctypes = append(ctypes, ragtypes.ContentType(s))
 			}
 		}
-		if len(types) > 0 {
-			opts = append(opts, ragtypes.WithContentTypes(types...))
+		if len(ctypes) > 0 {
+			opts = append(opts, ragtypes.WithContentTypes(ctypes...))
 		}
 	}
 
@@ -114,11 +114,11 @@ type LookupTool struct {
 	pipeline ragtypes.Pipeline
 }
 
-func (t *LookupTool) Definition() core.ToolDef {
-	return core.ToolDef{
+func (t *LookupTool) Definition() agenttypes.ToolDef {
+	return agenttypes.ToolDef{
 		Name:        "rag_lookup",
 		Description: "Look up a specific content variant by UUID. Returns full content with provenance.",
-		Parameters:  core.SchemaFrom[lookupParams](),
+		Parameters:  agenttypes.SchemaFrom[lookupParams](),
 	}
 }
 
@@ -147,11 +147,11 @@ type UpdateTool struct {
 	pipeline ragtypes.Pipeline
 }
 
-func (t *UpdateTool) Definition() core.ToolDef {
-	return core.ToolDef{
+func (t *UpdateTool) Definition() agenttypes.ToolDef {
+	return agenttypes.ToolDef{
 		Name:        "rag_update",
 		Description: "Update a document by re-ingesting with new content. Deletes the old version first.",
-		Parameters:  core.SchemaFrom[updateParams](),
+		Parameters:  agenttypes.SchemaFrom[updateParams](),
 	}
 }
 
@@ -187,11 +187,11 @@ type DeleteTool struct {
 	pipeline ragtypes.Pipeline
 }
 
-func (t *DeleteTool) Definition() core.ToolDef {
-	return core.ToolDef{
+func (t *DeleteTool) Definition() agenttypes.ToolDef {
+	return agenttypes.ToolDef{
 		Name:        "rag_delete",
 		Description: "Delete a document from the knowledge base by UUID.",
-		Parameters:  core.SchemaFrom[deleteParams](),
+		Parameters:  agenttypes.SchemaFrom[deleteParams](),
 	}
 }
 
@@ -214,11 +214,11 @@ type ReconstructTool struct {
 	pipeline ragtypes.Pipeline
 }
 
-func (t *ReconstructTool) Definition() core.ToolDef {
-	return core.ToolDef{
+func (t *ReconstructTool) Definition() agenttypes.ToolDef {
+	return agenttypes.ToolDef{
 		Name:        "rag_reconstruct",
 		Description: "Reconstruct the full document structure including all sections and variants.",
-		Parameters:  core.SchemaFrom[reconstructParams](),
+		Parameters:  agenttypes.SchemaFrom[reconstructParams](),
 	}
 }
 
@@ -243,8 +243,8 @@ func (t *ReconstructTool) Execute(ctx context.Context, args map[string]any) (str
 // --- NewTools ---
 
 // NewTools returns all 5 rag tools for use with agent.
-func NewTools(pipeline ragtypes.Pipeline) []core.Tool {
-	return []core.Tool{
+func NewTools(pipeline ragtypes.Pipeline) []agenttypes.Tool {
+	return []agenttypes.Tool{
 		&SearchTool{pipeline: pipeline},
 		&LookupTool{pipeline: pipeline},
 		&UpdateTool{pipeline: pipeline},

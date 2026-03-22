@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 	"golang.org/x/net/html"
 )
 
@@ -15,7 +15,7 @@ import (
 type HTML struct{}
 
 // Extract parses HTML and creates sections from heading-delimited blocks.
-func (e *HTML) Extract(_ context.Context, raw *ragtypes.RawDocument) (*ragtypes.Document, error) {
+func (e *HTML) Extract(_ context.Context, raw *types.RawDocument) (*types.Document, error) {
 	doc, err := html.Parse(bytes.NewReader(raw.Data))
 	if err != nil {
 		return nil, err
@@ -27,7 +27,7 @@ func (e *HTML) Extract(_ context.Context, raw *ragtypes.RawDocument) (*ragtypes.
 
 	blocks := extractTextBlocks(doc)
 
-	sections := make([]ragtypes.Section, 0, len(blocks))
+	sections := make([]types.Section, 0, len(blocks))
 	for i, block := range blocks {
 		text := strings.TrimSpace(block.text)
 		if text == "" {
@@ -35,15 +35,15 @@ func (e *HTML) Extract(_ context.Context, raw *ragtypes.RawDocument) (*ragtypes.
 		}
 		secUUID := uuid.New().String()
 		varUUID := uuid.New().String()
-		sections = append(sections, ragtypes.Section{
+		sections = append(sections, types.Section{
 			UUID:         secUUID,
 			DocumentUUID: docUUID,
 			Index:        i,
 			Heading:      block.heading,
-			Variants: []ragtypes.ContentVariant{{
+			Variants: []types.ContentVariant{{
 				UUID:        varUUID,
 				SectionUUID: secUUID,
-				ContentType: ragtypes.ContentText,
+				ContentType: types.ContentText,
 				MIMEType:    "text/html",
 				Text:        text,
 				Metadata:    raw.Metadata,
@@ -55,7 +55,7 @@ func (e *HTML) Extract(_ context.Context, raw *ragtypes.RawDocument) (*ragtypes.
 		title = titleFromText(sections[0].Variants[0].Text)
 	}
 
-	return &ragtypes.Document{
+	return &types.Document{
 		UUID:      docUUID,
 		SourceURI: raw.SourceURI,
 		Title:     title,

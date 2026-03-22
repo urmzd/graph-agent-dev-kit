@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
 func makeEmbedding(dim int) []float32 {
@@ -23,13 +23,13 @@ func BenchmarkCreateDocument(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		doc := &ragtypes.Document{
+		doc := &types.Document{
 			UUID:      fmt.Sprintf("doc-%d", i),
 			SourceURI: fmt.Sprintf("bench://doc-%d", i),
-			Sections: []ragtypes.Section{{
+			Sections: []types.Section{{
 				UUID:         fmt.Sprintf("sec-%d", i),
 				DocumentUUID: fmt.Sprintf("doc-%d", i),
-				Variants: []ragtypes.ContentVariant{{
+				Variants: []types.ContentVariant{{
 					UUID:      fmt.Sprintf("var-%d", i),
 					Text:      "benchmark text content",
 					Embedding: makeEmbedding(768),
@@ -45,13 +45,13 @@ func BenchmarkSearchByEmbedding(b *testing.B) {
 	ctx := context.Background()
 
 	for i := range 100 {
-		doc := &ragtypes.Document{
+		doc := &types.Document{
 			UUID:      fmt.Sprintf("doc-%d", i),
 			SourceURI: fmt.Sprintf("bench://doc-%d", i),
-			Sections: []ragtypes.Section{{
+			Sections: []types.Section{{
 				UUID:         fmt.Sprintf("sec-%d", i),
 				DocumentUUID: fmt.Sprintf("doc-%d", i),
-				Variants: []ragtypes.ContentVariant{{
+				Variants: []types.ContentVariant{{
 					UUID:      fmt.Sprintf("var-%d", i),
 					Text:      "benchmark text content for search",
 					Embedding: makeEmbedding(768),
@@ -62,7 +62,7 @@ func BenchmarkSearchByEmbedding(b *testing.B) {
 	}
 
 	query := makeEmbedding(768)
-	opts := &ragtypes.SearchOptions{Limit: 10}
+	opts := &types.SearchOptions{Limit: 10}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		s.SearchByEmbedding(ctx, query, opts)

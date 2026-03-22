@@ -7,19 +7,19 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 	"github.com/urmzd/saige/rag/tokenizer"
 )
 
 // CompressingAssembler uses an LLM to extract query-relevant sentences from each hit
 // before assembling context with citations.
 type CompressingAssembler struct {
-	LLM       ragtypes.LLM
+	LLM       types.LLM
 	MaxTokens int
 }
 
 // NewCompressing creates a compressing context assembler.
-func NewCompressing(llm ragtypes.LLM, maxTokens int) *CompressingAssembler {
+func NewCompressing(llm types.LLM, maxTokens int) *CompressingAssembler {
 	if maxTokens <= 0 {
 		maxTokens = 4096
 	}
@@ -36,7 +36,7 @@ Relevant sentences:`
 
 // Assemble compresses each hit's text via the LLM and builds context with citations.
 // Phase 1 compresses all hits in parallel; phase 2 applies the token budget sequentially.
-func (a *CompressingAssembler) Assemble(ctx context.Context, query string, hits []ragtypes.SearchHit) (*ragtypes.AssembledContext, error) {
+func (a *CompressingAssembler) Assemble(ctx context.Context, query string, hits []types.SearchHit) (*types.AssembledContext, error) {
 	// Phase 1: Parallel LLM compression.
 	compressedTexts := make([]string, len(hits))
 	g, gctx := errgroup.WithContext(ctx)
@@ -58,7 +58,7 @@ func (a *CompressingAssembler) Assemble(ctx context.Context, query string, hits 
 	}
 
 	// Phase 2: Sequential token budget assembly.
-	var blocks []ragtypes.ContextBlock
+	var blocks []types.ContextBlock
 	var parts []string
 	tokenCount := 0
 
@@ -74,7 +74,7 @@ func (a *CompressingAssembler) Assemble(ctx context.Context, query string, hits 
 		tokenCount += tokens
 
 		citation := fmt.Sprintf("[%d]", len(blocks)+1)
-		blocks = append(blocks, ragtypes.ContextBlock{
+		blocks = append(blocks, types.ContextBlock{
 			Text:       compressed,
 			Citation:   citation,
 			Provenance: hits[i].Provenance,
@@ -89,7 +89,7 @@ func (a *CompressingAssembler) Assemble(ctx context.Context, query string, hits 
 
 	promptText := fmt.Sprintf("Context for query %q:\n\n%s", query, joinStrings(parts, "\n\n"))
 
-	return &ragtypes.AssembledContext{
+	return &types.AssembledContext{
 		Prompt:     promptText,
 		Blocks:     blocks,
 		TokenCount: tokenCount,

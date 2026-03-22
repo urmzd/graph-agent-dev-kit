@@ -1,4 +1,4 @@
-// Package source provides ragtypes.Source implementations for fetching documents.
+// Package source provides types.Source implementations for fetching documents.
 package source
 
 import (
@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
 // Filesystem fetches documents from a local directory.
@@ -19,8 +19,8 @@ type Filesystem struct {
 }
 
 // Fetch walks the directory and returns a RawDocument for each matching file.
-func (s *Filesystem) Fetch(_ context.Context) ([]ragtypes.RawDocument, error) {
-	var docs []ragtypes.RawDocument
+func (s *Filesystem) Fetch(_ context.Context) ([]types.RawDocument, error) {
+	var docs []types.RawDocument
 
 	walkFn := func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -41,7 +41,7 @@ func (s *Filesystem) Fetch(_ context.Context) ([]ragtypes.RawDocument, error) {
 			return err
 		}
 
-		docs = append(docs, ragtypes.RawDocument{
+		docs = append(docs, types.RawDocument{
 			SourceURI: path,
 			MIMEType:  detectMIME(path),
 			Data:      data,

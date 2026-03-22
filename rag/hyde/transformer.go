@@ -7,7 +7,7 @@ import (
 
 	"golang.org/x/sync/errgroup"
 
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
 // DefaultPromptTemplate is the default prompt for generating hypothetical documents.
@@ -15,7 +15,7 @@ const DefaultPromptTemplate = "Write a short passage that would answer the follo
 
 // Config holds HyDE transformer parameters.
 type Config struct {
-	LLM             ragtypes.LLM
+	LLM             types.LLM
 	NumHypothetical int
 	PromptTemplate  string
 }

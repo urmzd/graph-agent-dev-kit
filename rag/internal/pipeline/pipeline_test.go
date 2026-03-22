@@ -10,28 +10,28 @@ import (
 	"github.com/urmzd/saige/rag/bm25retriever"
 	"github.com/urmzd/saige/rag/internal/pipeline"
 	"github.com/urmzd/saige/rag/memstore"
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 	"github.com/urmzd/saige/rag/vectorretriever"
 )
 
 type simpleExtractor struct{}
 
-func (e *simpleExtractor) Extract(_ context.Context, raw *ragtypes.RawDocument) (*ragtypes.Document, error) {
+func (e *simpleExtractor) Extract(_ context.Context, raw *types.RawDocument) (*types.Document, error) {
 	docUUID := "test-doc"
 	secUUID := "test-sec"
 	varUUID := "test-var"
-	return &ragtypes.Document{
+	return &types.Document{
 		UUID:      docUUID,
 		SourceURI: raw.SourceURI,
 		Title:     "Test Document",
-		Sections: []ragtypes.Section{{
+		Sections: []types.Section{{
 			UUID:         secUUID,
 			DocumentUUID: docUUID,
 			Index:        0,
-			Variants: []ragtypes.ContentVariant{{
+			Variants: []types.ContentVariant{{
 				UUID:        varUUID,
 				SectionUUID: secUUID,
-				ContentType: ragtypes.ContentText,
+				ContentType: types.ContentText,
 				MIMEType:    "text/plain",
 				Text:        string(raw.Data),
 			}},
@@ -43,8 +43,8 @@ func (e *simpleExtractor) Extract(_ context.Context, raw *ragtypes.RawDocument) 
 
 type simpleEmbedder struct{}
 
-func (e *simpleEmbedder) Register(_ ragtypes.ContentType, _ ragtypes.VariantEmbedder) {}
-func (e *simpleEmbedder) Embed(_ context.Context, variants []ragtypes.ContentVariant) ([][]float32, error) {
+func (e *simpleEmbedder) Register(_ types.ContentType, _ types.VariantEmbedder) {}
+func (e *simpleEmbedder) Embed(_ context.Context, variants []types.ContentVariant) ([][]float32, error) {
 	result := make([][]float32, len(variants))
 	for i := range variants {
 		// Simple hash-based embedding for testing.
@@ -65,7 +65,7 @@ type trackingIndexer struct {
 	removeCalled bool
 }
 
-func (t *trackingIndexer) Index(ctx context.Context, doc *ragtypes.Document) error {
+func (t *trackingIndexer) Index(ctx context.Context, doc *types.Document) error {
 	t.indexCalled = true
 	return t.Retriever.Index(ctx, doc)
 }
@@ -85,11 +85,11 @@ func TestPipelineIndexerIntegration(t *testing.T) {
 	pipe := pipeline.New(pipeline.Config{
 		Store:            store,
 		ContentExtractor: &simpleExtractor{},
-		Retrievers:       []ragtypes.Retriever{tracker},
+		Retrievers:       []types.Retriever{tracker},
 	})
 
 	// Ingest should call Index.
-	result, err := pipe.Ingest(ctx, &ragtypes.RawDocument{
+	result, err := pipe.Ingest(ctx, &types.RawDocument{
 		SourceURI: "test://doc",
 		Data:      []byte("the quick brown fox jumps over the lazy dog"),
 	})
@@ -122,10 +122,10 @@ func TestPipelineHybridSearch(t *testing.T) {
 		Store:            store,
 		ContentExtractor: &simpleExtractor{},
 		Embedders:        embedders,
-		Retrievers:       []ragtypes.Retriever{vecRetriever, bm25},
+		Retrievers:       []types.Retriever{vecRetriever, bm25},
 	})
 
-	_, err := pipe.Ingest(ctx, &ragtypes.RawDocument{
+	_, err := pipe.Ingest(ctx, &types.RawDocument{
 		SourceURI: "test://doc",
 		Data:      []byte("the quick brown fox jumps over the lazy dog"),
 	})
@@ -134,7 +134,7 @@ func TestPipelineHybridSearch(t *testing.T) {
 	}
 
 	// Search should combine results from both retrievers via RRF.
-	sr, err := pipe.Search(ctx, "quick brown fox", ragtypes.WithLimit(5))
+	sr, err := pipe.Search(ctx, "quick brown fox", types.WithLimit(5))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,23 +149,23 @@ type uniqueExtractor struct {
 	counter atomic.Int32
 }
 
-func (e *uniqueExtractor) Extract(_ context.Context, raw *ragtypes.RawDocument) (*ragtypes.Document, error) {
+func (e *uniqueExtractor) Extract(_ context.Context, raw *types.RawDocument) (*types.Document, error) {
 	n := e.counter.Add(1)
 	docUUID := fmt.Sprintf("doc-%d", n)
 	secUUID := fmt.Sprintf("sec-%d", n)
 	varUUID := fmt.Sprintf("var-%d", n)
-	return &ragtypes.Document{
+	return &types.Document{
 		UUID:      docUUID,
 		SourceURI: raw.SourceURI,
 		Title:     "Test Document",
-		Sections: []ragtypes.Section{{
+		Sections: []types.Section{{
 			UUID:         secUUID,
 			DocumentUUID: docUUID,
 			Index:        0,
-			Variants: []ragtypes.ContentVariant{{
+			Variants: []types.ContentVariant{{
 				UUID:        varUUID,
 				SectionUUID: secUUID,
-				ContentType: ragtypes.ContentText,
+				ContentType: types.ContentText,
 				MIMEType:    "text/plain",
 				Text:        string(raw.Data),
 			}},
@@ -183,10 +183,10 @@ func TestPipelineDedupSkip(t *testing.T) {
 	pipe := pipeline.New(pipeline.Config{
 		Store:            store,
 		ContentExtractor: extractor,
-		DedupBehavior:    ragtypes.DedupSkip,
+		DedupBehavior:    types.DedupSkip,
 	})
 
-	raw := &ragtypes.RawDocument{
+	raw := &types.RawDocument{
 		SourceURI: "test://dup",
 		Data:      []byte("duplicate content"),
 	}
@@ -221,10 +221,10 @@ func TestPipelineDedupReplace(t *testing.T) {
 	pipe := pipeline.New(pipeline.Config{
 		Store:            store,
 		ContentExtractor: extractor,
-		DedupBehavior:    ragtypes.DedupReplace,
+		DedupBehavior:    types.DedupReplace,
 	})
 
-	raw := &ragtypes.RawDocument{
+	raw := &types.RawDocument{
 		SourceURI: "test://dup",
 		Data:      []byte("duplicate content for replace"),
 	}
@@ -243,7 +243,7 @@ func TestPipelineDedupReplace(t *testing.T) {
 
 	// Old document should be gone.
 	_, err = store.GetDocument(ctx, r1.DocumentUUID)
-	if err != ragtypes.ErrDocumentNotFound {
+	if err != types.ErrDocumentNotFound {
 		t.Errorf("old document should be deleted, got err: %v", err)
 	}
 
@@ -264,7 +264,7 @@ func TestPipelineUpdate(t *testing.T) {
 		ContentExtractor: extractor,
 	})
 
-	raw1 := &ragtypes.RawDocument{
+	raw1 := &types.RawDocument{
 		SourceURI: "test://update",
 		Data:      []byte("original content"),
 	}
@@ -274,7 +274,7 @@ func TestPipelineUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	raw2 := &ragtypes.RawDocument{
+	raw2 := &types.RawDocument{
 		SourceURI: "test://update",
 		Data:      []byte("updated content"),
 	}
@@ -286,7 +286,7 @@ func TestPipelineUpdate(t *testing.T) {
 
 	// Old document should be deleted.
 	_, err = store.GetDocument(ctx, r1.DocumentUUID)
-	if err != ragtypes.ErrDocumentNotFound {
+	if err != types.ErrDocumentNotFound {
 		t.Errorf("old document should be deleted after update, got err: %v", err)
 	}
 
@@ -309,7 +309,7 @@ func TestPipelineReconstruct(t *testing.T) {
 		ContentExtractor: &simpleExtractor{},
 	})
 
-	raw := &ragtypes.RawDocument{
+	raw := &types.RawDocument{
 		SourceURI: "test://reconstruct",
 		Data:      []byte("document for reconstruction"),
 	}

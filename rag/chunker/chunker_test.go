@@ -6,20 +6,20 @@ import (
 	"testing"
 
 	"github.com/urmzd/saige/rag/chunker"
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
-func makeDoc(text string) *ragtypes.Document {
-	return &ragtypes.Document{
+func makeDoc(text string) *types.Document {
+	return &types.Document{
 		UUID: "doc1",
-		Sections: []ragtypes.Section{{
+		Sections: []types.Section{{
 			UUID:         "sec1",
 			DocumentUUID: "doc1",
 			Heading:      "Test Section",
-			Variants: []ragtypes.ContentVariant{{
+			Variants: []types.ContentVariant{{
 				UUID:        "var1",
 				SectionUUID: "sec1",
-				ContentType: ragtypes.ContentText,
+				ContentType: types.ContentText,
 				MIMEType:    "text/plain",
 				Text:        text,
 			}},

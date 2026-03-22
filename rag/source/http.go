@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
 // HTTP fetches documents from a list of URLs.
@@ -17,13 +17,13 @@ type HTTP struct {
 }
 
 // Fetch downloads each URL and returns the content as RawDocuments.
-func (s *HTTP) Fetch(ctx context.Context) ([]ragtypes.RawDocument, error) {
+func (s *HTTP) Fetch(ctx context.Context) ([]types.RawDocument, error) {
 	client := s.Client
 	if client == nil {
 		client = http.DefaultClient
 	}
 
-	docs := make([]ragtypes.RawDocument, 0, len(s.URLs))
+	docs := make([]types.RawDocument, 0, len(s.URLs))
 	for _, url := range s.URLs {
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
@@ -54,7 +54,7 @@ func (s *HTTP) Fetch(ctx context.Context) ([]ragtypes.RawDocument, error) {
 			mimeType = strings.TrimSpace(mimeType[:idx])
 		}
 
-		docs = append(docs, ragtypes.RawDocument{
+		docs = append(docs, types.RawDocument{
 			SourceURI: url,
 			MIMEType:  mimeType,
 			Data:      data,

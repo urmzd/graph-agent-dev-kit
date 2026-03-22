@@ -7,47 +7,47 @@ import (
 	"testing"
 
 	"github.com/urmzd/saige/rag/adktool"
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
 type mockPipeline struct {
-	searchResult      *ragtypes.SearchPipelineResult
+	searchResult      *types.SearchPipelineResult
 	searchErr         error
-	lookupResult      *ragtypes.SearchHit
+	lookupResult      *types.SearchHit
 	lookupErr         error
 	deleteErr         error
-	reconstructResult *ragtypes.Document
+	reconstructResult *types.Document
 	reconstructErr    error
 }
 
-func (m *mockPipeline) Ingest(_ context.Context, _ *ragtypes.RawDocument) (*ragtypes.IngestResult, error) {
-	return &ragtypes.IngestResult{DocumentUUID: "new-doc"}, nil
+func (m *mockPipeline) Ingest(_ context.Context, _ *types.RawDocument) (*types.IngestResult, error) {
+	return &types.IngestResult{DocumentUUID: "new-doc"}, nil
 }
-func (m *mockPipeline) Search(_ context.Context, _ string, _ ...ragtypes.SearchOption) (*ragtypes.SearchPipelineResult, error) {
+func (m *mockPipeline) Search(_ context.Context, _ string, _ ...types.SearchOption) (*types.SearchPipelineResult, error) {
 	return m.searchResult, m.searchErr
 }
-func (m *mockPipeline) Lookup(_ context.Context, _ string) (*ragtypes.SearchHit, error) {
+func (m *mockPipeline) Lookup(_ context.Context, _ string) (*types.SearchHit, error) {
 	return m.lookupResult, m.lookupErr
 }
-func (m *mockPipeline) Update(_ context.Context, _ string, _ *ragtypes.RawDocument) (*ragtypes.IngestResult, error) {
-	return &ragtypes.IngestResult{DocumentUUID: "updated-doc"}, nil
+func (m *mockPipeline) Update(_ context.Context, _ string, _ *types.RawDocument) (*types.IngestResult, error) {
+	return &types.IngestResult{DocumentUUID: "updated-doc"}, nil
 }
 func (m *mockPipeline) Delete(_ context.Context, _ string) error {
 	return m.deleteErr
 }
-func (m *mockPipeline) Reconstruct(_ context.Context, _ string) (*ragtypes.Document, error) {
+func (m *mockPipeline) Reconstruct(_ context.Context, _ string) (*types.Document, error) {
 	return m.reconstructResult, m.reconstructErr
 }
 func (m *mockPipeline) Close(_ context.Context) error { return nil }
 
 func TestSearchToolExecute(t *testing.T) {
 	mp := &mockPipeline{
-		searchResult: &ragtypes.SearchPipelineResult{
-			Hits: []ragtypes.SearchHit{
+		searchResult: &types.SearchPipelineResult{
+			Hits: []types.SearchHit{
 				{
-					Variant:    ragtypes.ContentVariant{UUID: "v1", ContentType: ragtypes.ContentText},
+					Variant:    types.ContentVariant{UUID: "v1", ContentType: types.ContentText},
 					Score:      0.95,
-					Provenance: ragtypes.Provenance{DocumentUUID: "d1", SourceURI: "http://example.com"},
+					Provenance: types.Provenance{DocumentUUID: "d1", SourceURI: "http://example.com"},
 				},
 			},
 		},
@@ -88,8 +88,8 @@ func TestSearchToolMissingQuery(t *testing.T) {
 
 func TestLookupToolExecute(t *testing.T) {
 	mp := &mockPipeline{
-		lookupResult: &ragtypes.SearchHit{
-			Variant: ragtypes.ContentVariant{UUID: "v1", Text: "content"},
+		lookupResult: &types.SearchHit{
+			Variant: types.ContentVariant{UUID: "v1", Text: "content"},
 			Score:   1.0,
 		},
 	}
@@ -159,7 +159,7 @@ func TestDeleteToolMissingUUID(t *testing.T) {
 
 func TestReconstructToolExecute(t *testing.T) {
 	mp := &mockPipeline{
-		reconstructResult: &ragtypes.Document{UUID: "d1", Title: "Test"},
+		reconstructResult: &types.Document{UUID: "d1", Title: "Test"},
 	}
 	tools := adktool.NewTools(mp)
 	reconstructTool := tools[4]

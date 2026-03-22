@@ -6,15 +6,15 @@ import (
 	"testing"
 
 	"github.com/urmzd/saige/rag/chunker"
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
 // mockEmbedder returns predictable embeddings: alternating similar/dissimilar.
 type mockEmbedder struct{}
 
-func (m *mockEmbedder) Register(_ ragtypes.ContentType, _ ragtypes.VariantEmbedder) {}
+func (m *mockEmbedder) Register(_ types.ContentType, _ types.VariantEmbedder) {}
 
-func (m *mockEmbedder) Embed(_ context.Context, variants []ragtypes.ContentVariant) ([][]float32, error) {
+func (m *mockEmbedder) Embed(_ context.Context, variants []types.ContentVariant) ([][]float32, error) {
 	embeddings := make([][]float32, len(variants))
 	for i := range variants {
 		vec := make([]float32, 4)
@@ -33,15 +33,15 @@ func TestSemanticChunkerSplits(t *testing.T) {
 	// Text with multiple sentences. Mock embedder will cause splits between consecutive sentences.
 	text := "First sentence about cats. Second sentence about dogs. Third sentence about birds. Fourth sentence about fish."
 
-	doc := &ragtypes.Document{
+	doc := &types.Document{
 		UUID: "doc1",
-		Sections: []ragtypes.Section{{
+		Sections: []types.Section{{
 			UUID:         "sec1",
 			DocumentUUID: "doc1",
-			Variants: []ragtypes.ContentVariant{{
+			Variants: []types.ContentVariant{{
 				UUID:        "var1",
 				SectionUUID: "sec1",
-				ContentType: ragtypes.ContentText,
+				ContentType: types.ContentText,
 				Text:        text,
 			}},
 		}},
@@ -69,15 +69,15 @@ func TestSemanticChunkerSplits(t *testing.T) {
 func TestSemanticChunkerShortText(t *testing.T) {
 	// Short text below MinTokens should not be split.
 	text := "Short."
-	doc := &ragtypes.Document{
+	doc := &types.Document{
 		UUID: "doc1",
-		Sections: []ragtypes.Section{{
+		Sections: []types.Section{{
 			UUID:         "sec1",
 			DocumentUUID: "doc1",
-			Variants: []ragtypes.ContentVariant{{
+			Variants: []types.ContentVariant{{
 				UUID:        "var1",
 				SectionUUID: "sec1",
-				ContentType: ragtypes.ContentText,
+				ContentType: types.ContentText,
 				Text:        text,
 			}},
 		}},

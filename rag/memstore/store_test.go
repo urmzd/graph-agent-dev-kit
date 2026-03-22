@@ -5,26 +5,26 @@ import (
 	"testing"
 
 	"github.com/urmzd/saige/rag/memstore"
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
 func TestGetVariant(t *testing.T) {
 	ctx := context.Background()
 	store := memstore.New()
 
-	doc := &ragtypes.Document{
+	doc := &types.Document{
 		UUID:      "doc1",
 		Title:     "Test",
 		SourceURI: "http://example.com",
-		Sections: []ragtypes.Section{{
+		Sections: []types.Section{{
 			UUID:         "sec1",
 			DocumentUUID: "doc1",
 			Index:        0,
 			Heading:      "Intro",
-			Variants: []ragtypes.ContentVariant{{
+			Variants: []types.ContentVariant{{
 				UUID:        "var1",
 				SectionUUID: "sec1",
-				ContentType: ragtypes.ContentText,
+				ContentType: types.ContentText,
 				Text:        "hello world",
 			}},
 		}},
@@ -49,7 +49,7 @@ func TestGetVariant(t *testing.T) {
 
 	// Not found.
 	_, _, err = store.GetVariant(ctx, "nonexistent")
-	if err != ragtypes.ErrVariantNotFound {
+	if err != types.ErrVariantNotFound {
 		t.Errorf("expected ErrVariantNotFound, got %v", err)
 	}
 }
@@ -58,15 +58,15 @@ func TestSearchByEmbedding(t *testing.T) {
 	ctx := context.Background()
 	store := memstore.New()
 
-	doc := &ragtypes.Document{
+	doc := &types.Document{
 		UUID: "doc1",
-		Sections: []ragtypes.Section{{
+		Sections: []types.Section{{
 			UUID:         "sec1",
 			DocumentUUID: "doc1",
-			Variants: []ragtypes.ContentVariant{
-				{UUID: "v1", SectionUUID: "sec1", ContentType: ragtypes.ContentText, Text: "cats", Embedding: []float32{1, 0, 0}},
-				{UUID: "v2", SectionUUID: "sec1", ContentType: ragtypes.ContentText, Text: "dogs", Embedding: []float32{0, 1, 0}},
-				{UUID: "v3", SectionUUID: "sec1", ContentType: ragtypes.ContentImage, Text: "image", Embedding: []float32{1, 0, 0}},
+			Variants: []types.ContentVariant{
+				{UUID: "v1", SectionUUID: "sec1", ContentType: types.ContentText, Text: "cats", Embedding: []float32{1, 0, 0}},
+				{UUID: "v2", SectionUUID: "sec1", ContentType: types.ContentText, Text: "dogs", Embedding: []float32{0, 1, 0}},
+				{UUID: "v3", SectionUUID: "sec1", ContentType: types.ContentImage, Text: "image", Embedding: []float32{1, 0, 0}},
 			},
 		}},
 	}
@@ -84,8 +84,8 @@ func TestSearchByEmbedding(t *testing.T) {
 	}
 
 	// Filter by content type.
-	hits, err = store.SearchByEmbedding(ctx, []float32{1, 0, 0}, &ragtypes.SearchOptions{
-		ContentTypes: []ragtypes.ContentType{ragtypes.ContentText},
+	hits, err = store.SearchByEmbedding(ctx, []float32{1, 0, 0}, &types.SearchOptions{
+		ContentTypes: []types.ContentType{types.ContentText},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -95,7 +95,7 @@ func TestSearchByEmbedding(t *testing.T) {
 	}
 
 	// MinScore filter.
-	hits, err = store.SearchByEmbedding(ctx, []float32{1, 0, 0}, &ragtypes.SearchOptions{
+	hits, err = store.SearchByEmbedding(ctx, []float32{1, 0, 0}, &types.SearchOptions{
 		MinScore: 0.9,
 	})
 	if err != nil {
@@ -111,15 +111,15 @@ func TestSearchByEmbeddingMetadataFilter(t *testing.T) {
 	ctx := context.Background()
 	store := memstore.New()
 
-	doc := &ragtypes.Document{
+	doc := &types.Document{
 		UUID:     "doc1",
 		Metadata: map[string]string{"source": "wiki"},
-		Sections: []ragtypes.Section{{
+		Sections: []types.Section{{
 			UUID:         "sec1",
 			DocumentUUID: "doc1",
-			Variants: []ragtypes.ContentVariant{
-				{UUID: "v1", SectionUUID: "sec1", ContentType: ragtypes.ContentText, Text: "a", Embedding: []float32{1, 0}, Metadata: map[string]string{"lang": "en"}},
-				{UUID: "v2", SectionUUID: "sec1", ContentType: ragtypes.ContentText, Text: "b", Embedding: []float32{1, 0}, Metadata: map[string]string{"lang": "fr"}},
+			Variants: []types.ContentVariant{
+				{UUID: "v1", SectionUUID: "sec1", ContentType: types.ContentText, Text: "a", Embedding: []float32{1, 0}, Metadata: map[string]string{"lang": "en"}},
+				{UUID: "v2", SectionUUID: "sec1", ContentType: types.ContentText, Text: "b", Embedding: []float32{1, 0}, Metadata: map[string]string{"lang": "fr"}},
 			},
 		}},
 	}
@@ -127,8 +127,8 @@ func TestSearchByEmbeddingMetadataFilter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	hits, err := store.SearchByEmbedding(ctx, []float32{1, 0}, &ragtypes.SearchOptions{
-		MetadataFilters: []ragtypes.MetadataFilter{{Key: "lang", Op: ragtypes.FilterEq, Value: "en"}},
+	hits, err := store.SearchByEmbedding(ctx, []float32{1, 0}, &types.SearchOptions{
+		MetadataFilters: []types.MetadataFilter{{Key: "lang", Op: types.FilterEq, Value: "en"}},
 	})
 	if err != nil {
 		t.Fatal(err)

@@ -7,7 +7,7 @@ import (
 	"math"
 	"strings"
 
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
 // EvalResult holds computed evaluation metrics.
@@ -28,13 +28,13 @@ type EvalCase struct {
 
 // EvalOptions configures which metrics to compute.
 type EvalOptions struct {
-	LLM       ragtypes.LLM
-	Embedders ragtypes.EmbedderRegistry
+	LLM       types.LLM
+	Embedders types.EmbedderRegistry
 }
 
 // ContextPrecision computes precision@k at each relevant UUID's rank, averaged.
 // This is the Average Precision metric.
-func ContextPrecision(hits []ragtypes.SearchHit, relevantUUIDs []string) float64 {
+func ContextPrecision(hits []types.SearchHit, relevantUUIDs []string) float64 {
 	if len(relevantUUIDs) == 0 {
 		return 0
 	}
@@ -60,7 +60,7 @@ func ContextPrecision(hits []ragtypes.SearchHit, relevantUUIDs []string) float64
 }
 
 // ContextRecall computes the fraction of relevant UUIDs present in the results.
-func ContextRecall(hits []ragtypes.SearchHit, relevantUUIDs []string) float64 {
+func ContextRecall(hits []types.SearchHit, relevantUUIDs []string) float64 {
 	if len(relevantUUIDs) == 0 {
 		return 0
 	}
@@ -91,7 +91,7 @@ Response:
 Return ONLY a decimal number between 0.0 and 1.0:`
 
 // Faithfulness uses an LLM to decompose the response into claims and check each against context.
-func Faithfulness(ctx context.Context, response string, contextText string, llm ragtypes.LLM) (float64, error) {
+func Faithfulness(ctx context.Context, response string, contextText string, llm types.LLM) (float64, error) {
 	prompt := fmt.Sprintf(faithfulnessPrompt, contextText, response)
 	result, err := llm.Generate(ctx, prompt)
 	if err != nil {
@@ -109,10 +109,10 @@ func Faithfulness(ctx context.Context, response string, contextText string, llm 
 }
 
 // AnswerRelevancy computes cosine similarity between query and response embeddings.
-func AnswerRelevancy(ctx context.Context, query, response string, embedders ragtypes.EmbedderRegistry) (float64, error) {
-	variants := []ragtypes.ContentVariant{
-		{ContentType: ragtypes.ContentText, Text: query},
-		{ContentType: ragtypes.ContentText, Text: response},
+func AnswerRelevancy(ctx context.Context, query, response string, embedders types.EmbedderRegistry) (float64, error) {
+	variants := []types.ContentVariant{
+		{ContentType: types.ContentText, Text: query},
+		{ContentType: types.ContentText, Text: response},
 	}
 
 	embeddings, err := embedders.Embed(ctx, variants)
@@ -124,11 +124,11 @@ func AnswerRelevancy(ctx context.Context, query, response string, embedders ragt
 }
 
 // Evaluate runs all cases through the pipeline and computes all applicable metrics.
-func Evaluate(ctx context.Context, cases []EvalCase, pipe ragtypes.Pipeline, opts *EvalOptions) ([]EvalResult, error) {
+func Evaluate(ctx context.Context, cases []EvalCase, pipe types.Pipeline, opts *EvalOptions) ([]EvalResult, error) {
 	results := make([]EvalResult, len(cases))
 
 	for i, tc := range cases {
-		sr, err := pipe.Search(ctx, tc.Query, ragtypes.WithLimit(20))
+		sr, err := pipe.Search(ctx, tc.Query, types.WithLimit(20))
 		if err != nil {
 			return nil, fmt.Errorf("evaluate case %d: %w", i, err)
 		}

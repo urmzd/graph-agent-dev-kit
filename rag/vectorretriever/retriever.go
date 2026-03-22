@@ -5,27 +5,27 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
 // VectorRetriever embeds a query and delegates to store.SearchByEmbedding.
 type VectorRetriever struct {
-	embedders ragtypes.EmbedderRegistry
-	store     ragtypes.Store
+	embedders types.EmbedderRegistry
+	store     types.Store
 }
 
 // New creates a VectorRetriever with the given store and embedder registry.
-func New(store ragtypes.Store, embedders ragtypes.EmbedderRegistry) *VectorRetriever {
+func New(store types.Store, embedders types.EmbedderRegistry) *VectorRetriever {
 	return &VectorRetriever{store: store, embedders: embedders}
 }
 
 // Retrieve embeds the query as a text variant and searches the store.
-func (r *VectorRetriever) Retrieve(ctx context.Context, query string, opts *ragtypes.SearchOptions) ([]ragtypes.SearchHit, error) {
-	queryVariant := ragtypes.ContentVariant{
-		ContentType: ragtypes.ContentText,
+func (r *VectorRetriever) Retrieve(ctx context.Context, query string, opts *types.SearchOptions) ([]types.SearchHit, error) {
+	queryVariant := types.ContentVariant{
+		ContentType: types.ContentText,
 		Text:        query,
 	}
-	embeddings, err := r.embedders.Embed(ctx, []ragtypes.ContentVariant{queryVariant})
+	embeddings, err := r.embedders.Embed(ctx, []types.ContentVariant{queryVariant})
 	if err != nil {
 		return nil, fmt.Errorf("embed query: %w", err)
 	}

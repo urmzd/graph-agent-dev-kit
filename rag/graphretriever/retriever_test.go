@@ -4,34 +4,34 @@ import (
 	"context"
 	"testing"
 
-	"github.com/urmzd/saige/kg/kgtypes"
+	knowledgetypes "github.com/urmzd/saige/knowledge/types"
 	"github.com/urmzd/saige/rag/graphretriever"
 	"github.com/urmzd/saige/rag/memstore"
-	"github.com/urmzd/saige/rag/ragtypes"
+	ragtypes "github.com/urmzd/saige/rag/types"
 )
 
 type mockGraph struct {
-	facts    []kgtypes.Fact
-	episodes map[string][]kgtypes.Episode // factUUID -> episodes
+	facts    []knowledgetypes.Fact
+	episodes map[string][]knowledgetypes.Episode // factUUID -> episodes
 }
 
-func (m *mockGraph) ApplyOntology(_ context.Context, _ *kgtypes.Ontology) error { return nil }
-func (m *mockGraph) IngestEpisode(_ context.Context, _ *kgtypes.EpisodeInput) (*kgtypes.IngestResult, error) {
-	return &kgtypes.IngestResult{}, nil
+func (m *mockGraph) ApplyOntology(_ context.Context, _ *knowledgetypes.Ontology) error { return nil }
+func (m *mockGraph) IngestEpisode(_ context.Context, _ *knowledgetypes.EpisodeInput) (*knowledgetypes.IngestResult, error) {
+	return &knowledgetypes.IngestResult{}, nil
 }
-func (m *mockGraph) GetEntity(_ context.Context, _ string) (*kgtypes.Entity, error) {
+func (m *mockGraph) GetEntity(_ context.Context, _ string) (*knowledgetypes.Entity, error) {
 	return nil, nil
 }
-func (m *mockGraph) SearchFacts(_ context.Context, _ string, _ ...kgtypes.SearchOption) (*kgtypes.SearchFactsResult, error) {
-	return &kgtypes.SearchFactsResult{Facts: m.facts}, nil
+func (m *mockGraph) SearchFacts(_ context.Context, _ string, _ ...knowledgetypes.SearchOption) (*knowledgetypes.SearchFactsResult, error) {
+	return &knowledgetypes.SearchFactsResult{Facts: m.facts}, nil
 }
-func (m *mockGraph) GetGraph(_ context.Context, _ int64) (*kgtypes.GraphData, error) {
+func (m *mockGraph) GetGraph(_ context.Context, _ int64) (*knowledgetypes.GraphData, error) {
 	return nil, nil
 }
-func (m *mockGraph) GetNode(_ context.Context, _ string, _ int) (*kgtypes.NodeDetail, error) {
+func (m *mockGraph) GetNode(_ context.Context, _ string, _ int) (*knowledgetypes.NodeDetail, error) {
 	return nil, nil
 }
-func (m *mockGraph) GetFactProvenance(_ context.Context, factUUID string) ([]kgtypes.Episode, error) {
+func (m *mockGraph) GetFactProvenance(_ context.Context, factUUID string) ([]knowledgetypes.Episode, error) {
 	if eps, ok := m.episodes[factUUID]; ok {
 		return eps, nil
 	}
@@ -44,11 +44,11 @@ func TestGraphRetrieverFallback(t *testing.T) {
 	store := memstore.New()
 
 	graph := &mockGraph{
-		facts: []kgtypes.Fact{
+		facts: []knowledgetypes.Fact{
 			{UUID: "f1", FactText: "Transformers use self-attention"},
 			{UUID: "f2", FactText: "BERT is a language model"},
 		},
-		episodes: map[string][]kgtypes.Episode{},
+		episodes: map[string][]knowledgetypes.Episode{},
 	}
 
 	r := graphretriever.New(graph, store)
@@ -101,10 +101,10 @@ func TestGraphRetrieverWithProvenance(t *testing.T) {
 	}
 
 	graph := &mockGraph{
-		facts: []kgtypes.Fact{
+		facts: []knowledgetypes.Fact{
 			{UUID: "f1", FactText: "attention is important"},
 		},
-		episodes: map[string][]kgtypes.Episode{
+		episodes: map[string][]knowledgetypes.Episode{
 			"f1": {{
 				UUID:    "ep1",
 				Name:    "Introduction",

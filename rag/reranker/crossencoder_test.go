@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 	"github.com/urmzd/saige/rag/reranker"
 )
 
@@ -20,10 +20,10 @@ func (m *mockScorer) Score(_ context.Context, pairs []reranker.QueryDocPair) ([]
 }
 
 func TestCrossEncoderReranker(t *testing.T) {
-	hits := []ragtypes.SearchHit{
-		{Variant: ragtypes.ContentVariant{UUID: "short", Text: "hi"}, Score: 1.0},
-		{Variant: ragtypes.ContentVariant{UUID: "medium", Text: "hello world"}, Score: 0.5},
-		{Variant: ragtypes.ContentVariant{UUID: "long", Text: "this is a much longer document with many words"}, Score: 0.1},
+	hits := []types.SearchHit{
+		{Variant: types.ContentVariant{UUID: "short", Text: "hi"}, Score: 1.0},
+		{Variant: types.ContentVariant{UUID: "medium", Text: "hello world"}, Score: 0.5},
+		{Variant: types.ContentVariant{UUID: "long", Text: "this is a much longer document with many words"}, Score: 0.1},
 	}
 
 	r := reranker.NewCrossEncoder(&mockScorer{})

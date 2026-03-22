@@ -6,25 +6,25 @@ import (
 
 	"github.com/urmzd/saige/rag/bm25retriever"
 	"github.com/urmzd/saige/rag/memstore"
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
-func makeDoc(uuid, title string, sections []ragtypes.Section) *ragtypes.Document {
-	return &ragtypes.Document{
+func makeDoc(uuid, title string, sections []types.Section) *types.Document {
+	return &types.Document{
 		UUID:     uuid,
 		Title:    title,
 		Sections: sections,
 	}
 }
 
-func makeTextSection(docUUID, secUUID, varUUID, text string) ragtypes.Section {
-	return ragtypes.Section{
+func makeTextSection(docUUID, secUUID, varUUID, text string) types.Section {
+	return types.Section{
 		UUID:         secUUID,
 		DocumentUUID: docUUID,
-		Variants: []ragtypes.ContentVariant{{
+		Variants: []types.ContentVariant{{
 			UUID:        varUUID,
 			SectionUUID: secUUID,
-			ContentType: ragtypes.ContentText,
+			ContentType: types.ContentText,
 			Text:        text,
 		}},
 	}
@@ -34,24 +34,24 @@ func TestBM25IndexAndSearch(t *testing.T) {
 	ctx := context.Background()
 	store := memstore.New()
 
-	doc1 := makeDoc("doc1", "Doc 1", []ragtypes.Section{
+	doc1 := makeDoc("doc1", "Doc 1", []types.Section{
 		makeTextSection("doc1", "sec1", "var1", "the quick brown fox jumps over the lazy dog"),
 	})
-	doc2 := makeDoc("doc2", "Doc 2", []ragtypes.Section{
+	doc2 := makeDoc("doc2", "Doc 2", []types.Section{
 		makeTextSection("doc2", "sec2", "var2", "the lazy cat sleeps all day long"),
 	})
-	doc3 := makeDoc("doc3", "Doc 3", []ragtypes.Section{
+	doc3 := makeDoc("doc3", "Doc 3", []types.Section{
 		makeTextSection("doc3", "sec3", "var3", "a fast brown fox runs through the forest"),
 	})
 
-	for _, doc := range []*ragtypes.Document{doc1, doc2, doc3} {
+	for _, doc := range []*types.Document{doc1, doc2, doc3} {
 		if err := store.CreateDocument(ctx, doc); err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	r := bm25retriever.New(store, nil)
-	for _, doc := range []*ragtypes.Document{doc1, doc2, doc3} {
+	for _, doc := range []*types.Document{doc1, doc2, doc3} {
 		if err := r.Index(ctx, doc); err != nil {
 			t.Fatal(err)
 		}
@@ -85,7 +85,7 @@ func TestBM25Remove(t *testing.T) {
 	ctx := context.Background()
 	store := memstore.New()
 
-	doc := makeDoc("doc1", "Doc 1", []ragtypes.Section{
+	doc := makeDoc("doc1", "Doc 1", []types.Section{
 		makeTextSection("doc1", "sec1", "var1", "unique term xylophone"),
 	})
 	if err := store.CreateDocument(ctx, doc); err != nil {
@@ -116,13 +116,13 @@ func TestBM25MetadataFilter(t *testing.T) {
 	ctx := context.Background()
 	store := memstore.New()
 
-	doc := makeDoc("doc1", "Doc 1", []ragtypes.Section{{
+	doc := makeDoc("doc1", "Doc 1", []types.Section{{
 		UUID:         "sec1",
 		DocumentUUID: "doc1",
-		Variants: []ragtypes.ContentVariant{{
+		Variants: []types.ContentVariant{{
 			UUID:        "var1",
 			SectionUUID: "sec1",
-			ContentType: ragtypes.ContentText,
+			ContentType: types.ContentText,
 			Text:        "hello world test",
 			Metadata:    map[string]string{"lang": "en"},
 		}},
@@ -137,16 +137,16 @@ func TestBM25MetadataFilter(t *testing.T) {
 	}
 
 	// Filter that should match.
-	hits, _ := r.Retrieve(ctx, "hello", &ragtypes.SearchOptions{
-		MetadataFilters: []ragtypes.MetadataFilter{{Key: "lang", Op: ragtypes.FilterEq, Value: "en"}},
+	hits, _ := r.Retrieve(ctx, "hello", &types.SearchOptions{
+		MetadataFilters: []types.MetadataFilter{{Key: "lang", Op: types.FilterEq, Value: "en"}},
 	})
 	if len(hits) != 1 {
 		t.Fatalf("expected 1 hit with matching filter, got %d", len(hits))
 	}
 
 	// Filter that should not match.
-	hits, _ = r.Retrieve(ctx, "hello", &ragtypes.SearchOptions{
-		MetadataFilters: []ragtypes.MetadataFilter{{Key: "lang", Op: ragtypes.FilterEq, Value: "fr"}},
+	hits, _ = r.Retrieve(ctx, "hello", &types.SearchOptions{
+		MetadataFilters: []types.MetadataFilter{{Key: "lang", Op: types.FilterEq, Value: "fr"}},
 	})
 	if len(hits) != 0 {
 		t.Fatalf("expected 0 hits with non-matching filter, got %d", len(hits))

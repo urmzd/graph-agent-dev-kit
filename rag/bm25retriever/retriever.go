@@ -9,7 +9,7 @@ import (
 	"sync"
 	"unicode"
 
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
 // Config holds BM25 parameters.
@@ -28,10 +28,10 @@ type posting struct {
 	termFreq    float64
 }
 
-// Retriever implements both ragtypes.Retriever and ragtypes.Indexer using BM25 scoring.
+// Retriever implements both types.Retriever and types.Indexer using BM25 scoring.
 type Retriever struct {
 	mu       sync.RWMutex
-	store    ragtypes.Store
+	store    types.Store
 	cfg      Config
 	index    map[string][]posting // term -> postings
 	docLen   map[string]float64   // variantUUID -> document length (token count)
@@ -42,7 +42,7 @@ type Retriever struct {
 }
 
 // New creates a BM25 retriever. If cfg is nil, defaults are used.
-func New(store ragtypes.Store, cfg *Config) *Retriever {
+func New(store types.Store, cfg *Config) *Retriever {
 	if cfg == nil {
 		cfg = DefaultConfig()
 	}
@@ -63,13 +63,13 @@ func tokenize(text string) []string {
 }
 
 // Index indexes all text variants in a document.
-func (r *Retriever) Index(_ context.Context, doc *ragtypes.Document) error {
+func (r *Retriever) Index(_ context.Context, doc *types.Document) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	for _, sec := range doc.Sections {
 		for _, v := range sec.Variants {
-			if v.ContentType != ragtypes.ContentText || v.Text == "" {
+			if v.ContentType != types.ContentText || v.Text == "" {
 				continue
 			}
 			tokens := tokenize(v.Text)
@@ -152,7 +152,7 @@ func (r *Retriever) recomputeAvgDL() {
 }
 
 // Retrieve computes BM25 scores for each variant matching the query terms.
-func (r *Retriever) Retrieve(ctx context.Context, query string, opts *ragtypes.SearchOptions) ([]ragtypes.SearchHit, error) {
+func (r *Retriever) Retrieve(ctx context.Context, query string, opts *types.SearchOptions) ([]types.SearchHit, error) {
 	r.mu.RLock()
 	queryTokens := tokenize(query)
 	if len(queryTokens) == 0 || r.docCount == 0 {
@@ -206,7 +206,7 @@ func (r *Retriever) Retrieve(ctx context.Context, query string, opts *ragtypes.S
 		ranked = ranked[:limit]
 	}
 
-	hits := make([]ragtypes.SearchHit, 0, len(ranked))
+	hits := make([]types.SearchHit, 0, len(ranked))
 	for _, sv := range ranked {
 		variant, prov, err := r.store.GetVariant(ctx, sv.uuid)
 		if err != nil {
@@ -234,7 +234,7 @@ func (r *Retriever) Retrieve(ctx context.Context, query string, opts *ragtypes.S
 			}
 		}
 
-		hits = append(hits, ragtypes.SearchHit{
+		hits = append(hits, types.SearchHit{
 			Variant:    *variant,
 			Score:      sv.score,
 			Provenance: *prov,
@@ -244,19 +244,19 @@ func (r *Retriever) Retrieve(ctx context.Context, query string, opts *ragtypes.S
 	return hits, nil
 }
 
-func matchFilters(meta map[string]string, filters []ragtypes.MetadataFilter) bool {
+func matchFilters(meta map[string]string, filters []types.MetadataFilter) bool {
 	for _, f := range filters {
 		val, ok := meta[f.Key]
 		switch f.Op {
-		case ragtypes.FilterEq:
+		case types.FilterEq:
 			if !ok || val != f.Value {
 				return false
 			}
-		case ragtypes.FilterNeq:
+		case types.FilterNeq:
 			if ok && val == f.Value {
 				return false
 			}
-		case ragtypes.FilterContains:
+		case types.FilterContains:
 			if !ok || !strings.Contains(val, f.Value) {
 				return false
 			}

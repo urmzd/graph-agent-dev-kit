@@ -4,28 +4,28 @@ import (
 	"context"
 	"testing"
 
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 	"github.com/urmzd/saige/rag/reranker"
 )
 
 func TestMMRRerankerDiversity(t *testing.T) {
 	// Create hits with synthetic embeddings.
 	// Hit A and B are very similar (same embedding), Hit C is different.
-	hits := []ragtypes.SearchHit{
+	hits := []types.SearchHit{
 		{
-			Variant:    ragtypes.ContentVariant{UUID: "a", Text: "similar 1", Embedding: []float32{1, 0, 0, 0}},
+			Variant:    types.ContentVariant{UUID: "a", Text: "similar 1", Embedding: []float32{1, 0, 0, 0}},
 			Score:      1.0,
-			Provenance: ragtypes.Provenance{DocumentUUID: "d1"},
+			Provenance: types.Provenance{DocumentUUID: "d1"},
 		},
 		{
-			Variant:    ragtypes.ContentVariant{UUID: "b", Text: "similar 2", Embedding: []float32{1, 0, 0, 0}},
+			Variant:    types.ContentVariant{UUID: "b", Text: "similar 2", Embedding: []float32{1, 0, 0, 0}},
 			Score:      0.9,
-			Provenance: ragtypes.Provenance{DocumentUUID: "d1"},
+			Provenance: types.Provenance{DocumentUUID: "d1"},
 		},
 		{
-			Variant:    ragtypes.ContentVariant{UUID: "c", Text: "different", Embedding: []float32{0, 1, 0, 0}},
+			Variant:    types.ContentVariant{UUID: "c", Text: "different", Embedding: []float32{0, 1, 0, 0}},
 			Score:      0.8,
-			Provenance: ragtypes.Provenance{DocumentUUID: "d2"},
+			Provenance: types.Provenance{DocumentUUID: "d2"},
 		},
 	}
 
@@ -51,8 +51,8 @@ func TestMMRRerankerDiversity(t *testing.T) {
 }
 
 func TestMMRSingleHit(t *testing.T) {
-	hits := []ragtypes.SearchHit{
-		{Variant: ragtypes.ContentVariant{UUID: "a"}, Score: 1.0},
+	hits := []types.SearchHit{
+		{Variant: types.ContentVariant{UUID: "a"}, Score: 1.0},
 	}
 
 	r := reranker.NewMMR(0.7)

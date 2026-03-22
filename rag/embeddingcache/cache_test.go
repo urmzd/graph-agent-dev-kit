@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/urmzd/saige/rag/embeddingcache"
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
 type countingEmbedder struct {
@@ -14,7 +14,7 @@ type countingEmbedder struct {
 	variantsSum atomic.Int32
 }
 
-func (e *countingEmbedder) Embed(_ context.Context, variants []ragtypes.ContentVariant) ([][]float32, error) {
+func (e *countingEmbedder) Embed(_ context.Context, variants []types.ContentVariant) ([][]float32, error) {
 	e.callCount.Add(1)
 	e.variantsSum.Add(int32(len(variants)))
 	result := make([][]float32, len(variants))
@@ -28,8 +28,8 @@ func TestCacheHit(t *testing.T) {
 	inner := &countingEmbedder{}
 	cache := embeddingcache.New(inner)
 
-	variants := []ragtypes.ContentVariant{
-		{UUID: "v1", ContentType: ragtypes.ContentText, Text: "hello"},
+	variants := []types.ContentVariant{
+		{UUID: "v1", ContentType: types.ContentText, Text: "hello"},
 	}
 
 	// First call: miss.
@@ -57,8 +57,8 @@ func TestCacheMiss(t *testing.T) {
 	inner := &countingEmbedder{}
 	cache := embeddingcache.New(inner)
 
-	v1 := []ragtypes.ContentVariant{{UUID: "v1", ContentType: ragtypes.ContentText, Text: "hello"}}
-	v2 := []ragtypes.ContentVariant{{UUID: "v2", ContentType: ragtypes.ContentText, Text: "world"}}
+	v1 := []types.ContentVariant{{UUID: "v1", ContentType: types.ContentText, Text: "hello"}}
+	v2 := []types.ContentVariant{{UUID: "v2", ContentType: types.ContentText, Text: "world"}}
 
 	if _, err := cache.Embed(context.Background(), v1); err != nil {
 		t.Fatal(err)
@@ -80,7 +80,7 @@ func TestLRUEviction(t *testing.T) {
 	texts := []string{"aaa", "bbb", "ccc"}
 
 	for _, text := range texts {
-		v := []ragtypes.ContentVariant{{ContentType: ragtypes.ContentText, Text: text}}
+		v := []types.ContentVariant{{ContentType: types.ContentText, Text: text}}
 		if _, err := cache.Embed(ctx, v); err != nil {
 			t.Fatal(err)
 		}
@@ -92,7 +92,7 @@ func TestLRUEviction(t *testing.T) {
 	}
 
 	// "aaa" should have been evicted (oldest). Re-embedding it should trigger a new call.
-	v := []ragtypes.ContentVariant{{ContentType: ragtypes.ContentText, Text: "aaa"}}
+	v := []types.ContentVariant{{ContentType: types.ContentText, Text: "aaa"}}
 	if _, err := cache.Embed(ctx, v); err != nil {
 		t.Fatal(err)
 	}
@@ -102,7 +102,7 @@ func TestLRUEviction(t *testing.T) {
 	}
 
 	// "ccc" should still be cached.
-	v = []ragtypes.ContentVariant{{ContentType: ragtypes.ContentText, Text: "ccc"}}
+	v = []types.ContentVariant{{ContentType: types.ContentText, Text: "ccc"}}
 	if _, err := cache.Embed(ctx, v); err != nil {
 		t.Fatal(err)
 	}
@@ -119,15 +119,15 @@ func TestMixedHitMiss(t *testing.T) {
 	ctx := context.Background()
 
 	// Pre-populate cache with "hello".
-	v := []ragtypes.ContentVariant{{ContentType: ragtypes.ContentText, Text: "hello"}}
+	v := []types.ContentVariant{{ContentType: types.ContentText, Text: "hello"}}
 	if _, err := cache.Embed(ctx, v); err != nil {
 		t.Fatal(err)
 	}
 
 	// Now embed a batch with one hit and one miss.
-	batch := []ragtypes.ContentVariant{
-		{ContentType: ragtypes.ContentText, Text: "hello"}, // hit
-		{ContentType: ragtypes.ContentText, Text: "world"}, // miss
+	batch := []types.ContentVariant{
+		{ContentType: types.ContentText, Text: "hello"}, // hit
+		{ContentType: types.ContentText, Text: "world"}, // miss
 	}
 	results, err := cache.Embed(ctx, batch)
 	if err != nil {

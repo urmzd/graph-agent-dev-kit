@@ -6,24 +6,24 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
 // Retriever wraps an inner retriever and expands each hit with the full parent section text.
 type Retriever struct {
-	inner ragtypes.Retriever
-	store ragtypes.Store
+	inner types.Retriever
+	store types.Store
 }
 
 // New creates a parent-context retriever wrapping the given inner retriever.
-func New(inner ragtypes.Retriever, store ragtypes.Store) *Retriever {
+func New(inner types.Retriever, store types.Store) *Retriever {
 	return &Retriever{inner: inner, store: store}
 }
 
 // Retrieve calls the inner retriever, deduplicates by section UUID (keeping the highest score
 // per section), then replaces each hit's text with the concatenation of all variant texts
 // in the parent section.
-func (r *Retriever) Retrieve(ctx context.Context, query string, opts *ragtypes.SearchOptions) ([]ragtypes.SearchHit, error) {
+func (r *Retriever) Retrieve(ctx context.Context, query string, opts *types.SearchOptions) ([]types.SearchHit, error) {
 	hits, err := r.inner.Retrieve(ctx, query, opts)
 	if err != nil {
 		return nil, fmt.Errorf("inner retrieve: %w", err)
@@ -34,7 +34,7 @@ func (r *Retriever) Retrieve(ctx context.Context, query string, opts *ragtypes.S
 	}
 
 	// Dedupe by section UUID, keeping highest score.
-	bestBySection := make(map[string]ragtypes.SearchHit)
+	bestBySection := make(map[string]types.SearchHit)
 	for _, hit := range hits {
 		secUUID := hit.Provenance.SectionUUID
 		if existing, ok := bestBySection[secUUID]; !ok || hit.Score > existing.Score {
@@ -43,7 +43,7 @@ func (r *Retriever) Retrieve(ctx context.Context, query string, opts *ragtypes.S
 	}
 
 	// Expand each hit with full section text.
-	result := make([]ragtypes.SearchHit, 0, len(bestBySection))
+	result := make([]types.SearchHit, 0, len(bestBySection))
 	for _, hit := range bestBySection {
 		docUUID := hit.Provenance.DocumentUUID
 		sections, err := r.store.GetSections(ctx, docUUID)

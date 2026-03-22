@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
 func FuzzPlainTextExtractor(f *testing.F) {
@@ -16,7 +16,7 @@ func FuzzPlainTextExtractor(f *testing.F) {
 
 	ext := &PlainText{}
 	f.Fuzz(func(t *testing.T, data []byte) {
-		raw := &ragtypes.RawDocument{
+		raw := &types.RawDocument{
 			Data:      data,
 			SourceURI: "fuzz://test",
 		}
@@ -40,7 +40,7 @@ func FuzzHTMLExtractor(f *testing.F) {
 
 	ext := &HTML{}
 	f.Fuzz(func(t *testing.T, data []byte) {
-		raw := &ragtypes.RawDocument{
+		raw := &types.RawDocument{
 			Data:      data,
 			SourceURI: "fuzz://test",
 		}

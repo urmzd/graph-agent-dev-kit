@@ -6,14 +6,14 @@ import (
 
 	"github.com/urmzd/saige/rag/memstore"
 	"github.com/urmzd/saige/rag/parentretriever"
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
 type mockRetriever struct {
-	hits []ragtypes.SearchHit
+	hits []types.SearchHit
 }
 
-func (m *mockRetriever) Retrieve(_ context.Context, _ string, _ *ragtypes.SearchOptions) ([]ragtypes.SearchHit, error) {
+func (m *mockRetriever) Retrieve(_ context.Context, _ string, _ *types.SearchOptions) ([]types.SearchHit, error) {
 	return m.hits, nil
 }
 
@@ -22,17 +22,17 @@ func TestParentRetrieverExpandsSection(t *testing.T) {
 	store := memstore.New()
 
 	// Create a document with a section that has multiple variants.
-	doc := &ragtypes.Document{
+	doc := &types.Document{
 		UUID:  "doc1",
 		Title: "Test Doc",
-		Sections: []ragtypes.Section{{
+		Sections: []types.Section{{
 			UUID:         "sec1",
 			DocumentUUID: "doc1",
 			Index:        0,
 			Heading:      "Introduction",
-			Variants: []ragtypes.ContentVariant{
-				{UUID: "v1", SectionUUID: "sec1", ContentType: ragtypes.ContentText, Text: "First paragraph."},
-				{UUID: "v2", SectionUUID: "sec1", ContentType: ragtypes.ContentText, Text: "Second paragraph."},
+			Variants: []types.ContentVariant{
+				{UUID: "v1", SectionUUID: "sec1", ContentType: types.ContentText, Text: "First paragraph."},
+				{UUID: "v2", SectionUUID: "sec1", ContentType: types.ContentText, Text: "Second paragraph."},
 			},
 		}},
 	}
@@ -42,10 +42,10 @@ func TestParentRetrieverExpandsSection(t *testing.T) {
 
 	// Mock inner retriever returns a hit for just v1.
 	inner := &mockRetriever{
-		hits: []ragtypes.SearchHit{{
-			Variant: ragtypes.ContentVariant{UUID: "v1", Text: "First paragraph."},
+		hits: []types.SearchHit{{
+			Variant: types.ContentVariant{UUID: "v1", Text: "First paragraph."},
 			Score:   0.9,
-			Provenance: ragtypes.Provenance{
+			Provenance: types.Provenance{
 				DocumentUUID:   "doc1",
 				SectionUUID:    "sec1",
 				SectionHeading: "Introduction",
@@ -73,14 +73,14 @@ func TestParentRetrieverDedupes(t *testing.T) {
 	ctx := context.Background()
 	store := memstore.New()
 
-	doc := &ragtypes.Document{
+	doc := &types.Document{
 		UUID: "doc1",
-		Sections: []ragtypes.Section{{
+		Sections: []types.Section{{
 			UUID:         "sec1",
 			DocumentUUID: "doc1",
-			Variants: []ragtypes.ContentVariant{
-				{UUID: "v1", SectionUUID: "sec1", ContentType: ragtypes.ContentText, Text: "Text A."},
-				{UUID: "v2", SectionUUID: "sec1", ContentType: ragtypes.ContentText, Text: "Text B."},
+			Variants: []types.ContentVariant{
+				{UUID: "v1", SectionUUID: "sec1", ContentType: types.ContentText, Text: "Text A."},
+				{UUID: "v2", SectionUUID: "sec1", ContentType: types.ContentText, Text: "Text B."},
 			},
 		}},
 	}
@@ -90,16 +90,16 @@ func TestParentRetrieverDedupes(t *testing.T) {
 
 	// Inner retriever returns two hits from same section.
 	inner := &mockRetriever{
-		hits: []ragtypes.SearchHit{
+		hits: []types.SearchHit{
 			{
-				Variant: ragtypes.ContentVariant{UUID: "v1", Text: "Text A."},
+				Variant: types.ContentVariant{UUID: "v1", Text: "Text A."},
 				Score:   0.9,
-				Provenance: ragtypes.Provenance{DocumentUUID: "doc1", SectionUUID: "sec1"},
+				Provenance: types.Provenance{DocumentUUID: "doc1", SectionUUID: "sec1"},
 			},
 			{
-				Variant: ragtypes.ContentVariant{UUID: "v2", Text: "Text B."},
+				Variant: types.ContentVariant{UUID: "v2", Text: "Text B."},
 				Score:   0.8,
-				Provenance: ragtypes.Provenance{DocumentUUID: "doc1", SectionUUID: "sec1"},
+				Provenance: types.Provenance{DocumentUUID: "doc1", SectionUUID: "sec1"},
 			},
 		},
 	}

@@ -1,4 +1,4 @@
-// Package memstore provides an in-memory implementation of ragtypes.Store.
+// Package memstore provides an in-memory implementation of types.Store.
 package memstore
 
 import (
@@ -8,13 +8,13 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/urmzd/saige/rag/ragtypes"
+	"github.com/urmzd/saige/rag/types"
 )
 
 // Store is a thread-safe in-memory document store with brute-force cosine similarity search.
 type Store struct {
 	mu           sync.RWMutex
-	docs         map[string]*ragtypes.Document
+	docs         map[string]*types.Document
 	originals    map[string][]byte
 	fingerprints map[string]string // fingerprint -> doc UUID
 }
@@ -22,13 +22,13 @@ type Store struct {
 // New creates a new in-memory store.
 func New() *Store {
 	return &Store{
-		docs:         make(map[string]*ragtypes.Document),
+		docs:         make(map[string]*types.Document),
 		originals:    make(map[string][]byte),
 		fingerprints: make(map[string]string),
 	}
 }
 
-func (s *Store) CreateDocument(_ context.Context, doc *ragtypes.Document) error {
+func (s *Store) CreateDocument(_ context.Context, doc *types.Document) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.docs[doc.UUID] = doc
@@ -38,22 +38,22 @@ func (s *Store) CreateDocument(_ context.Context, doc *ragtypes.Document) error 
 	return nil
 }
 
-func (s *Store) GetDocument(_ context.Context, uuid string) (*ragtypes.Document, error) {
+func (s *Store) GetDocument(_ context.Context, uuid string) (*types.Document, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	doc, ok := s.docs[uuid]
 	if !ok {
-		return nil, ragtypes.ErrDocumentNotFound
+		return nil, types.ErrDocumentNotFound
 	}
 	return doc, nil
 }
 
-func (s *Store) FindByFingerprint(_ context.Context, fingerprint string) (*ragtypes.Document, error) {
+func (s *Store) FindByFingerprint(_ context.Context, fingerprint string) (*types.Document, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	uuid, ok := s.fingerprints[fingerprint]
 	if !ok {
-		return nil, ragtypes.ErrDocumentNotFound
+		return nil, types.ErrDocumentNotFound
 	}
 	return s.docs[uuid], nil
 }
@@ -82,33 +82,33 @@ func (s *Store) GetOriginal(_ context.Context, documentUUID string) ([]byte, err
 	defer s.mu.RUnlock()
 	data, ok := s.originals[documentUUID]
 	if !ok {
-		return nil, ragtypes.ErrDocumentNotFound
+		return nil, types.ErrDocumentNotFound
 	}
 	return data, nil
 }
 
-func (s *Store) CreateSection(_ context.Context, section *ragtypes.Section) error {
+func (s *Store) CreateSection(_ context.Context, section *types.Section) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	doc, ok := s.docs[section.DocumentUUID]
 	if !ok {
-		return ragtypes.ErrDocumentNotFound
+		return types.ErrDocumentNotFound
 	}
 	doc.Sections = append(doc.Sections, *section)
 	return nil
 }
 
-func (s *Store) GetSections(_ context.Context, documentUUID string) ([]ragtypes.Section, error) {
+func (s *Store) GetSections(_ context.Context, documentUUID string) ([]types.Section, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	doc, ok := s.docs[documentUUID]
 	if !ok {
-		return nil, ragtypes.ErrDocumentNotFound
+		return nil, types.ErrDocumentNotFound
 	}
 	return doc.Sections, nil
 }
 
-func (s *Store) CreateVariant(_ context.Context, variant *ragtypes.ContentVariant) error {
+func (s *Store) CreateVariant(_ context.Context, variant *types.ContentVariant) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i, doc := range s.docs {
@@ -119,7 +119,7 @@ func (s *Store) CreateVariant(_ context.Context, variant *ragtypes.ContentVarian
 			}
 		}
 	}
-	return ragtypes.ErrDocumentNotFound
+	return types.ErrDocumentNotFound
 }
 
 func (s *Store) UpdateVariantEmbedding(_ context.Context, variantUUID string, embedding []float32) error {
@@ -135,17 +135,17 @@ func (s *Store) UpdateVariantEmbedding(_ context.Context, variantUUID string, em
 			}
 		}
 	}
-	return ragtypes.ErrDocumentNotFound
+	return types.ErrDocumentNotFound
 }
 
-func (s *Store) GetVariant(_ context.Context, variantUUID string) (*ragtypes.ContentVariant, *ragtypes.Provenance, error) {
+func (s *Store) GetVariant(_ context.Context, variantUUID string) (*types.ContentVariant, *types.Provenance, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	for _, doc := range s.docs {
 		for _, sec := range doc.Sections {
 			for _, v := range sec.Variants {
 				if v.UUID == variantUUID {
-					prov := &ragtypes.Provenance{
+					prov := &types.Provenance{
 						DocumentUUID:   doc.UUID,
 						DocumentTitle:  doc.Title,
 						SourceURI:      doc.SourceURI,
@@ -158,10 +158,10 @@ func (s *Store) GetVariant(_ context.Context, variantUUID string) (*ragtypes.Con
 			}
 		}
 	}
-	return nil, nil, ragtypes.ErrVariantNotFound
+	return nil, nil, types.ErrVariantNotFound
 }
 
-func (s *Store) SearchByEmbedding(_ context.Context, embedding []float32, opts *ragtypes.SearchOptions) ([]ragtypes.SearchHit, error) {
+func (s *Store) SearchByEmbedding(_ context.Context, embedding []float32, opts *types.SearchOptions) ([]types.SearchHit, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -170,14 +170,14 @@ func (s *Store) SearchByEmbedding(_ context.Context, embedding []float32, opts *
 		limit = opts.Limit
 	}
 
-	typeFilter := make(map[ragtypes.ContentType]bool)
+	typeFilter := make(map[types.ContentType]bool)
 	if opts != nil {
 		for _, ct := range opts.ContentTypes {
 			typeFilter[ct] = true
 		}
 	}
 
-	var results []ragtypes.SearchHit
+	var results []types.SearchHit
 	for _, doc := range s.docs {
 		for _, sec := range doc.Sections {
 			for _, v := range sec.Variants {
@@ -203,10 +203,10 @@ func (s *Store) SearchByEmbedding(_ context.Context, embedding []float32, opts *
 					continue
 				}
 
-				results = append(results, ragtypes.SearchHit{
+				results = append(results, types.SearchHit{
 					Variant: v,
 					Score:   score,
-					Provenance: ragtypes.Provenance{
+					Provenance: types.Provenance{
 						DocumentUUID:   doc.UUID,
 						DocumentTitle:  doc.Title,
 						SourceURI:      doc.SourceURI,
@@ -245,19 +245,19 @@ func mergeMetadata(docMeta, variantMeta map[string]string) map[string]string {
 	return merged
 }
 
-func matchFilters(meta map[string]string, filters []ragtypes.MetadataFilter) bool {
+func matchFilters(meta map[string]string, filters []types.MetadataFilter) bool {
 	for _, f := range filters {
 		val, ok := meta[f.Key]
 		switch f.Op {
-		case ragtypes.FilterEq:
+		case types.FilterEq:
 			if !ok || val != f.Value {
 				return false
 			}
-		case ragtypes.FilterNeq:
+		case types.FilterNeq:
 			if ok && val == f.Value {
 				return false
 			}
-		case ragtypes.FilterContains:
+		case types.FilterContains:
 			if !ok || !strings.Contains(val, f.Value) {
 				return false
 			}
