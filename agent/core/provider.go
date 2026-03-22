@@ -23,6 +23,11 @@ type StructuredOutputProvider interface {
 	ChatStreamWithSchema(ctx context.Context, messages []Message, tools []ToolDef, schema *ParameterSchema) (<-chan Delta, error)
 }
 
+// Closer is an optional interface providers can implement for graceful shutdown.
+type Closer interface {
+	Close() error
+}
+
 // ProviderName returns the name of a provider if it implements NamedProvider,
 // otherwise returns "unknown".
 func ProviderName(p Provider) string {
@@ -30,4 +35,12 @@ func ProviderName(p Provider) string {
 		return np.Name()
 	}
 	return "unknown"
+}
+
+// CloseProvider closes a provider if it implements Closer, otherwise returns nil.
+func CloseProvider(p Provider) error {
+	if c, ok := p.(Closer); ok {
+		return c.Close()
+	}
+	return nil
 }
