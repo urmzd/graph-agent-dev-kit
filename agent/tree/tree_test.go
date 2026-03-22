@@ -368,12 +368,12 @@ func TestTreeWithWAL(t *testing.T) {
 	tree.AddChild(root.ID, core.NewUserMessage("hello"))
 
 	// Verify WAL recorded transactions
-	committed, _ := wal.Recover()
+	committed, _ := wal.Recover(context.Background())
 	if len(committed) != 1 {
 		t.Errorf("committed txns = %d, want 1", len(committed))
 	}
 
-	ops, _ := wal.Replay(committed[0])
+	ops, _ := wal.Replay(context.Background(), committed[0])
 	if len(ops) != 1 {
 		t.Errorf("ops = %d, want 1", len(ops))
 	}
@@ -542,41 +542,43 @@ func TestCompactionPreservesShared(t *testing.T) {
 func TestInMemoryWAL(t *testing.T) {
 	wal := memwal.New()
 
+	ctx := context.Background()
+
 	// Begin and commit
-	txID, err := wal.Begin()
+	txID, err := wal.Begin(ctx)
 	if err != nil {
 		t.Fatalf("Begin: %v", err)
 	}
 
-	err = wal.Append(txID, core.TxOp{Kind: core.TxOpAddNode})
+	err = wal.Append(ctx, txID, core.TxOp{Kind: core.TxOpAddNode})
 	if err != nil {
 		t.Fatalf("Append: %v", err)
 	}
 
-	err = wal.Commit(txID)
+	err = wal.Commit(ctx, txID)
 	if err != nil {
 		t.Fatalf("Commit: %v", err)
 	}
 
 	// Begin and abort
-	txID2, _ := wal.Begin()
-	wal.Append(txID2, core.TxOp{Kind: core.TxOpSetBranch})
-	wal.Abort(txID2)
+	txID2, _ := wal.Begin(ctx)
+	wal.Append(ctx, txID2, core.TxOp{Kind: core.TxOpSetBranch})
+	wal.Abort(ctx, txID2)
 
 	// Recover should only return committed
-	committed, _ := wal.Recover()
+	committed, _ := wal.Recover(ctx)
 	if len(committed) != 1 {
 		t.Errorf("committed = %d, want 1", len(committed))
 	}
 
 	// Replay
-	ops, _ := wal.Replay(committed[0])
+	ops, _ := wal.Replay(ctx, committed[0])
 	if len(ops) != 1 {
 		t.Errorf("ops = %d, want 1", len(ops))
 	}
 
 	// Append to committed tx should fail
-	err = wal.Append(txID, core.TxOp{Kind: core.TxOpAddNode})
+	err = wal.Append(ctx, txID, core.TxOp{Kind: core.TxOpAddNode})
 	if err == nil {
 		t.Fatal("expected error appending to committed tx")
 	}

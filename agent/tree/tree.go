@@ -1,6 +1,7 @@
 package tree
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -516,13 +517,14 @@ func (t *Tree) walAddNode(node *core.Node) error {
 	if t.wal == nil {
 		return nil
 	}
-	txID, err := t.wal.Begin()
+	ctx := context.TODO()
+	txID, err := t.wal.Begin(ctx)
 	if err != nil {
 		return err
 	}
-	if err := t.wal.Append(txID, core.TxOp{Kind: core.TxOpAddNode, Node: node}); err != nil {
-		_ = t.wal.Abort(txID)
+	if err := t.wal.Append(ctx, txID, core.TxOp{Kind: core.TxOpAddNode, Node: node}); err != nil {
+		_ = t.wal.Abort(ctx, txID)
 		return err
 	}
-	return t.wal.Commit(txID)
+	return t.wal.Commit(ctx, txID)
 }
