@@ -1,0 +1,13 @@
+.git
+.github
+.claude
+.DS_Store
+Dockerfile
+Justfile
+LICENSE
+*.md
+*.test
+*.out
+coverage.out
+showcase/
+skills/
