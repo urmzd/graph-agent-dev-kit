@@ -1,0 +1,105 @@
+CREATE EXTENSION IF NOT EXISTS vector
+---
+CREATE EXTENSION IF NOT EXISTS pg_trgm
+---
+CREATE TABLE IF NOT EXISTS kg_entity (
+    id         BIGSERIAL PRIMARY KEY,
+    uuid       TEXT NOT NULL UNIQUE,
+    name       TEXT NOT NULL,
+    type       TEXT NOT NULL,
+    summary    TEXT NOT NULL DEFAULT '',
+    embedding  vector({{.KGEmbeddingDim}}),
+    search_vec tsvector GENERATED ALWAYS AS (
+        to_tsvector('english', coalesce(name,'') || ' ' || coalesce(summary,''))
+    ) STORED,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (name, type)
+)
+---
+CREATE INDEX IF NOT EXISTS idx_kg_entity_embedding ON kg_entity USING hnsw (embedding vector_cosine_ops)
+---
+CREATE INDEX IF NOT EXISTS idx_kg_entity_search ON kg_entity USING GIN (search_vec)
+---
+CREATE INDEX IF NOT EXISTS idx_kg_entity_name_trgm ON kg_entity USING GIN (name gin_trgm_ops)
+---
+CREATE TABLE IF NOT EXISTS kg_relation (
+    id         BIGSERIAL PRIMARY KEY,
+    uuid       TEXT NOT NULL UNIQUE,
+    source_id  BIGINT NOT NULL REFERENCES kg_entity(id) ON DELETE CASCADE,
+    target_id  BIGINT NOT NULL REFERENCES kg_entity(id) ON DELETE CASCADE,
+    type       TEXT NOT NULL,
+    fact       TEXT NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    valid_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    invalid_at TIMESTAMPTZ
+)
+---
+CREATE INDEX IF NOT EXISTS idx_kg_relation_source ON kg_relation(source_id)
+---
+CREATE INDEX IF NOT EXISTS idx_kg_relation_target ON kg_relation(target_id)
+---
+CREATE INDEX IF NOT EXISTS idx_kg_relation_valid ON kg_relation(invalid_at) WHERE invalid_at IS NULL
+---
+CREATE TABLE IF NOT EXISTS kg_episode (
+    id         BIGSERIAL PRIMARY KEY,
+    uuid       TEXT NOT NULL UNIQUE,
+    name       TEXT NOT NULL,
+    body       TEXT NOT NULL,
+    source     TEXT NOT NULL DEFAULT '',
+    group_id   TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+)
+---
+CREATE INDEX IF NOT EXISTS idx_kg_episode_group ON kg_episode(group_id)
+---
+CREATE TABLE IF NOT EXISTS kg_mention (
+    episode_id BIGINT NOT NULL REFERENCES kg_episode(id) ON DELETE CASCADE,
+    entity_id  BIGINT NOT NULL REFERENCES kg_entity(id) ON DELETE CASCADE,
+    PRIMARY KEY (episode_id, entity_id)
+)
+---
+CREATE INDEX IF NOT EXISTS idx_kg_mention_entity ON kg_mention(entity_id)
+---
+CREATE TABLE IF NOT EXISTS rag_document (
+    id          BIGSERIAL PRIMARY KEY,
+    uuid        TEXT NOT NULL UNIQUE,
+    source_uri  TEXT NOT NULL DEFAULT '',
+    fingerprint TEXT NOT NULL DEFAULT '',
+    title       TEXT NOT NULL DEFAULT '',
+    metadata    JSONB,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+)
+---
+CREATE UNIQUE INDEX IF NOT EXISTS idx_rag_document_fingerprint ON rag_document(fingerprint) WHERE fingerprint != ''
+---
+CREATE TABLE IF NOT EXISTS rag_original (
+    document_id BIGINT PRIMARY KEY REFERENCES rag_document(id) ON DELETE CASCADE,
+    data        BYTEA NOT NULL
+)
+---
+CREATE TABLE IF NOT EXISTS rag_section (
+    id          BIGSERIAL PRIMARY KEY,
+    uuid        TEXT NOT NULL UNIQUE,
+    document_id BIGINT NOT NULL REFERENCES rag_document(id) ON DELETE CASCADE,
+    idx         INT NOT NULL,
+    heading     TEXT NOT NULL DEFAULT ''
+)
+---
+CREATE INDEX IF NOT EXISTS idx_rag_section_document ON rag_section(document_id)
+---
+CREATE TABLE IF NOT EXISTS rag_variant (
+    id           BIGSERIAL PRIMARY KEY,
+    uuid         TEXT NOT NULL UNIQUE,
+    section_id   BIGINT NOT NULL REFERENCES rag_section(id) ON DELETE CASCADE,
+    content_type TEXT NOT NULL,
+    mime_type    TEXT NOT NULL DEFAULT '',
+    data         BYTEA,
+    text         TEXT NOT NULL DEFAULT '',
+    embedding    vector({{.RAGEmbeddingDim}}),
+    metadata     JSONB
+)
+---
+CREATE INDEX IF NOT EXISTS idx_rag_variant_section ON rag_variant(section_id)
+---
+CREATE INDEX IF NOT EXISTS idx_rag_variant_embedding ON rag_variant USING hnsw (embedding vector_cosine_ops)
