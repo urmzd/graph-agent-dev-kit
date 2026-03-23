@@ -1,0 +1,7 @@
+Extract only the sentences from the following text that are relevant to the query. Return only the relevant sentences, nothing else. If nothing is relevant, return "N/A".
+
+Query: {{.Query}}
+
+Text: {{.Text}}
+
+Relevant sentences:

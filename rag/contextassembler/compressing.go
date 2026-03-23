@@ -26,14 +26,6 @@ func NewCompressing(llm types.LLM, maxTokens int) *CompressingAssembler {
 	return &CompressingAssembler{LLM: llm, MaxTokens: maxTokens}
 }
 
-const compressionPrompt = `Extract only the sentences from the following text that are relevant to the query. Return only the relevant sentences, nothing else. If nothing is relevant, return "N/A".
-
-Query: %s
-
-Text: %s
-
-Relevant sentences:`
-
 // Assemble compresses each hit's text via the LLM and builds context with citations.
 // Phase 1 compresses all hits in parallel; phase 2 applies the token budget sequentially.
 func (a *CompressingAssembler) Assemble(ctx context.Context, query string, hits []types.SearchHit) (*types.AssembledContext, error) {
@@ -42,7 +34,7 @@ func (a *CompressingAssembler) Assemble(ctx context.Context, query string, hits 
 	g, gctx := errgroup.WithContext(ctx)
 
 	for i, hit := range hits {
-		prompt := fmt.Sprintf(compressionPrompt, query, hit.Variant.Text)
+		prompt := renderPrompt(compressionTmpl, map[string]any{"Query": query, "Text": hit.Variant.Text})
 		g.Go(func() error {
 			text, err := a.LLM.Generate(gctx, prompt)
 			if err != nil {
