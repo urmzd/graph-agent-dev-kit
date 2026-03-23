@@ -1,18 +1,19 @@
 # saige — Super AI Graph Ecosystem
 
-> A unified Go SDK for streaming AI agents, knowledge graphs, and RAG pipelines.
+> A unified Go SDK and CLI for streaming AI agents, knowledge graphs, and RAG pipelines.
 
-Combines three packages: agent (streaming AI agent loop with typed deltas, tool dispatch, sub-agents, provider adapters, and RLHF feedback), knowledge (LLM-powered knowledge graph construction with PostgreSQL + pgvector and hybrid search), and rag (multi-modal RAG pipelines with chunking, multi-retriever fusion, reranking, and citations).
+Combines three packages: agent (streaming AI agent loop with typed deltas, tool dispatch, sub-agents, provider adapters, and RLHF feedback), knowledge (LLM-powered knowledge graph construction with PostgreSQL + pgvector and hybrid search), and rag (multi-modal RAG pipelines with chunking, multi-retriever fusion, reranking, and citations). Includes a CLI (`saige`) with interactive chat, single-shot queries, and standalone RAG/KG operations.
 
 ## Docs
 
-- [README](README.md): Overview, installation, quick start
-- [AGENTS.md](AGENTS.md): Architecture, packages, commands, code style
+- [README](README.md): Overview, CLI usage, installation, quick start
+- [AGENTS.md](AGENTS.md): Architecture, packages, CLI, commands, code style
 - [CONTRIBUTING.md](CONTRIBUTING.md): Development setup, commit conventions
 
 ## Key Files
 
+- CLI: cmd/saige/main.go, cmd/saige/chat.go, cmd/saige/ask.go, cmd/saige/rag.go, cmd/saige/kg.go, cmd/saige/provider.go, cmd/saige/connect.go
 - Agent: agent/agent.go, agent/types/provider.go, agent/types/tool.go, agent/types/message.go, agent/types/delta.go, agent/types/content.go, agent/types/node.go
-- Knowledge: knowledge/config.go, knowledge/types/types.go, knowledge/pgstore/store.go
+- Knowledge: knowledge/config.go, knowledge/types/types.go, knowledge/pgstore/store.go, knowledge/tool/tools.go
 - RAG: rag/config.go, rag/types/types.go, rag/internal/pipeline/pipeline.go, rag/eval/eval.go, rag/tool/tools.go
 - Shared: postgres/pool.go, postgres/migrate.go
