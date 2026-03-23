@@ -1,0 +1,1 @@
+UPDATE kg_relation SET invalid_at = $1 WHERE uuid = $2

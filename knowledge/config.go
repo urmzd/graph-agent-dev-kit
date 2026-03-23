@@ -5,18 +5,15 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/urmzd/saige/knowledge/internal/engine"
+	"github.com/urmzd/saige/knowledge/pgstore"
 	"github.com/urmzd/saige/knowledge/types"
-	knowledgesurrealdb "github.com/urmzd/saige/knowledge/surrealdb"
 )
 
 // Config holds configuration for creating a Graph.
 type Config struct {
-	SurrealDBURL string
-	Namespace    string
-	Database     string
-	Username     string
-	Password     string
+	PostgresPool *pgxpool.Pool
 	Extractor    types.Extractor
 	Embedder     types.Embedder
 	Logger       *slog.Logger
@@ -26,14 +23,10 @@ type Config struct {
 // Option configures kg.
 type Option func(*Config)
 
-// WithSurrealDB configures SurrealDB connection.
-func WithSurrealDB(url, namespace, database, username, password string) Option {
+// WithPostgres configures a PostgreSQL backend using a shared connection pool.
+func WithPostgres(pool *pgxpool.Pool) Option {
 	return func(c *Config) {
-		c.SurrealDBURL = url
-		c.Namespace = namespace
-		c.Database = database
-		c.Username = username
-		c.Password = password
+		c.PostgresPool = pool
 	}
 }
 
@@ -77,21 +70,10 @@ func NewGraph(ctx context.Context, opts ...Option) (types.Graph, error) {
 	var store types.Store
 	if cfg.Store != nil {
 		store = cfg.Store
-	} else if cfg.SurrealDBURL != "" {
-		var err error
-		store, err = knowledgesurrealdb.NewStore(ctx, knowledgesurrealdb.StoreConfig{
-			URL:       cfg.SurrealDBURL,
-			Namespace: cfg.Namespace,
-			Database:  cfg.Database,
-			Username:  cfg.Username,
-			Password:  cfg.Password,
-			Logger:    cfg.Logger,
-		})
-		if err != nil {
-			return nil, err
-		}
+	} else if cfg.PostgresPool != nil {
+		store = pgstore.NewStore(cfg.PostgresPool, cfg.Logger)
 	} else {
-		return nil, fmt.Errorf("no backend configured: use WithSurrealDB or WithStore")
+		return nil, fmt.Errorf("no backend configured: use WithPostgres or WithStore")
 	}
 
 	engineOpts := []engine.Option{

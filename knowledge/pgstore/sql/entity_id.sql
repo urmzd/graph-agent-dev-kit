@@ -1,0 +1,1 @@
+SELECT id FROM kg_entity WHERE uuid = $1
