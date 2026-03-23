@@ -1,20 +1,14 @@
-// Command saige is a development CLI for the saige SDK.
+// Command saige is the CLI for the saige SDK.
 package main
 
 import (
-	"bufio"
 	"context"
-	"flag"
 	"fmt"
 	"os"
-	"strings"
-
-	"github.com/urmzd/saige/agent"
-	"github.com/urmzd/saige/agent/types"
-	"github.com/urmzd/saige/agent/provider/ollama"
+	"os/signal"
 )
 
-const version = "0.3.0"
+const version = "0.4.0"
 
 func main() {
 	if len(os.Args) < 2 {
@@ -22,9 +16,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer stop()
+
 	switch os.Args[1] {
-	case "agent":
-		runAgent(os.Args[2:])
+	case "chat":
+		runChat(ctx, os.Args[2:])
+	case "ask":
+		runAsk(ctx, os.Args[2:])
+	case "rag":
+		runRAG(ctx, os.Args[2:])
+	case "kg":
+		runKG(ctx, os.Args[2:])
 	case "version":
 		fmt.Printf("saige v%s\n", version)
 	case "help", "--help", "-h":
@@ -40,50 +43,19 @@ func printUsage() {
 	fmt.Fprintln(os.Stderr, `Usage: saige <command> [flags]
 
 Commands:
-  agent    Run an interactive agent session
+  chat     Interactive multi-turn chat session
+  ask      Single-shot question (pipe-friendly)
+  rag      RAG document operations (search, lookup, ingest, delete)
+  kg       Knowledge graph operations (search, ingest, graph, node)
   version  Print version info
-  help     Show this help`)
-}
+  help     Show this help
 
-func runAgent(args []string) {
-	fs := flag.NewFlagSet("agent", flag.ExitOnError)
-	host := fs.String("host", "http://localhost:11434", "Ollama host URL")
-	model := fs.String("model", "qwen3.5:4b", "Model name")
-	system := fs.String("system", "You are a helpful assistant.", "System prompt")
-	fs.Parse(args)
+Provider flags (chat/ask):
+  --provider   LLM provider: anthropic, openai, google, ollama (auto-detected)
+  --model      Model name (provider-specific default)
+  --system     System prompt
 
-	client := ollama.NewClient(*host, *model, "nomic-embed-text")
-	a := agent.NewAgent(agent.AgentConfig{
-		Name:         "saige-agent",
-		SystemPrompt: *system,
-		Provider:     ollama.NewAdapter(client),
-	})
-
-	ctx := context.Background()
-	scanner := bufio.NewScanner(os.Stdin)
-
-	fmt.Fprintf(os.Stderr, "saige agent (model=%s)\nType your message, Ctrl+D to exit.\n\n", *model)
-
-	for {
-		fmt.Fprint(os.Stderr, "> ")
-		if !scanner.Scan() {
-			break
-		}
-		input := strings.TrimSpace(scanner.Text())
-		if input == "" {
-			continue
-		}
-
-		stream := a.Invoke(ctx, []types.Message{types.NewUserMessage(input)})
-		for delta := range stream.Deltas() {
-			switch d := delta.(type) {
-			case types.TextContentDelta:
-				fmt.Print(d.Content)
-			case types.ErrorDelta:
-				fmt.Fprintf(os.Stderr, "\nerror: %v\n", d.Error)
-			case types.DoneDelta:
-				fmt.Println()
-			}
-		}
-	}
+Connection flags (chat/ask):
+  --rag-db     Postgres DSN to enable RAG tools [$SAIGE_RAG_DB]
+  --kg-db      Postgres DSN to enable KG tools [$SAIGE_KG_DB]`)
 }
