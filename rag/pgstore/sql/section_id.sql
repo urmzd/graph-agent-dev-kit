@@ -1,0 +1,1 @@
+SELECT id FROM rag_section WHERE uuid = $1

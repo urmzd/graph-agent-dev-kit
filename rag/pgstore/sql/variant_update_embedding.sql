@@ -1,0 +1,1 @@
+UPDATE rag_variant SET embedding = $1 WHERE uuid = $2

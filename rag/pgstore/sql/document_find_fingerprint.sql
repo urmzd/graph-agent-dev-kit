@@ -1,0 +1,1 @@
+SELECT uuid FROM rag_document WHERE fingerprint = $1

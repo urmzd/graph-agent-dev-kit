@@ -1,0 +1,1 @@
+DELETE FROM rag_document WHERE uuid = $1
