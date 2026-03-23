@@ -80,12 +80,17 @@ for delta := range stream.Deltas() {
 import (
     "github.com/urmzd/saige/knowledge"
     "github.com/urmzd/saige/knowledge/types"
+    "github.com/urmzd/saige/postgres"
     "github.com/urmzd/saige/agent/provider/ollama"
 )
 
+// Connect to PostgreSQL (requires pgvector extension).
+pool, _ := postgres.NewPool(ctx, postgres.Config{URL: "postgres://localhost:5432/mydb"})
+postgres.RunMigrations(ctx, pool, postgres.MigrationOptions{})
+
 client := ollama.NewClient("http://localhost:11434", "qwen2.5", "nomic-embed-text")
 graph, _ := knowledge.NewGraph(ctx,
-    knowledge.WithSurrealDB("ws://localhost:8000", "default", "knowledge", "root", "root"),
+    knowledge.WithPostgres(pool),
     knowledge.WithExtractor(knowledge.NewOllamaExtractor(client)),
     knowledge.WithEmbedder(knowledge.NewOllamaEmbedder(client)),
 )
@@ -105,11 +110,16 @@ results, _ := graph.SearchFacts(ctx, "Who presented the roadmap?")
 import (
     "github.com/urmzd/saige/rag"
     "github.com/urmzd/saige/rag/types"
-    "github.com/urmzd/saige/rag/memstore"
+    "github.com/urmzd/saige/rag/pgstore"
+    "github.com/urmzd/saige/postgres"
 )
 
+// Reuse the same PostgreSQL pool (or create a new one).
+pool, _ := postgres.NewPool(ctx, postgres.Config{URL: "postgres://localhost:5432/mydb"})
+postgres.RunMigrations(ctx, pool, postgres.MigrationOptions{})
+
 pipe, _ := rag.NewPipeline(
-    rag.WithStore(memstore.New()),
+    rag.WithStore(pgstore.NewStore(pool, nil)),
     rag.WithContentExtractor(myExtractor),
     rag.WithEmbedders(myEmbedderRegistry),
     rag.WithRecursiveChunker(512, 50),
@@ -334,7 +344,7 @@ a := agent.NewAgent(agent.AgentConfig{
 
 ### TUI
 
-Two display modes for streaming agent progress:
+Three modes for streaming agent interaction:
 
 ```go
 import "github.com/urmzd/saige/agent/tui"
@@ -342,9 +352,13 @@ import "github.com/urmzd/saige/agent/tui"
 // Non-interactive (works in pipes/CI)
 result := tui.StreamVerbose(header, stream.Deltas(), os.Stdout)
 
-// Interactive (bubbletea)
+// Interactive single-stream (bubbletea)
 model := tui.NewStreamModel(header, stream.Deltas())
 tea.NewProgram(model).Run()
+
+// Multi-turn conversation loop (reads input, resolves markers, loops until /quit)
+runner := &tui.Runner{Title: "My Agent"}
+runner.Run(ctx, myAgent)
 ```
 
 ### Testing
@@ -418,9 +432,9 @@ detail, _ := graph.GetNode(ctx, entityUUID, 2) // BFS to depth 2
 sub := knowledge.Subgraph(detail)                      // extract visualization data
 ```
 
-### SurrealDB Backend
+### PostgreSQL Backend
 
-Automatic schema provisioning with HNSW vector index (768D cosine), BM25 fulltext indexes, unique constraints, and temporal tracking.
+Automatic schema provisioning via `postgres.RunMigrations` with pgvector HNSW index (configurable dimension, cosine distance), tsvector fulltext search, pg_trgm fuzzy matching, unique constraints, and temporal relation tracking.
 
 ---
 
@@ -512,13 +526,43 @@ rag.WithHyDE(myLLM, 3) // generate 3 hypothetical docs
 
 ### Evaluation Metrics
 
-```go
-import "github.com/urmzd/saige/rag/rageval"
+9 metrics across retrieval, generation, and end-to-end evaluation:
 
-precision := rageval.ContextPrecision(results, relevantUUIDs)
-recall := rageval.ContextRecall(results, relevantUUIDs)
-faithfulness, _ := rageval.Faithfulness(ctx, llm, query, answer, context)
-relevancy, _ := rageval.AnswerRelevancy(ctx, embedder, query, answer)
+| Metric | Type | Description |
+|--------|------|-------------|
+| `ContextPrecision` | Retrieval | Average Precision over relevant UUIDs |
+| `ContextRecall` | Retrieval | Fraction of relevant UUIDs in results |
+| `NDCG` | Retrieval | Normalized Discounted Cumulative Gain at rank k |
+| `MRR` | Retrieval | Reciprocal Rank of first relevant result |
+| `HitRate` | Retrieval | Binary: any relevant doc in top-k? |
+| `Faithfulness` | Generation | Claim decomposition + verification against context |
+| `AnswerRelevancy` | Generation | RAGAS-style synthetic question similarity |
+| `AnswerCorrectness` | Generation | LLM-judged comparison to ground truth |
+| `LLMJudge` | Generation | Pointwise scoring with custom rubric |
+
+```go
+import "github.com/urmzd/saige/rag/eval"
+
+// Retrieval metrics (pure functions, no LLM needed).
+precision := eval.ContextPrecision(hits, relevantUUIDs)
+recall := eval.ContextRecall(hits, relevantUUIDs)
+ndcg := eval.NDCG(hits, relevantUUIDs, 10)
+mrr := eval.MRR(hits, relevantUUIDs)
+hitRate := eval.HitRate(hits, relevantUUIDs, 10)
+
+// Generation metrics (require LLM and/or embedders).
+faith, detail, _ := eval.Faithfulness(ctx, response, contextText, llm)
+relevancy, _ := eval.AnswerRelevancy(ctx, query, response, llm, embedders, 3)
+correctness, _ := eval.AnswerCorrectness(ctx, response, groundTruth, llm)
+score, reason, _ := eval.LLMJudge(ctx, query, response, contextText, rubric, llm)
+
+// Full evaluation pipeline with functional options.
+results, _ := eval.Evaluate(ctx, cases, pipeline,
+    eval.WithLLM(llm),
+    eval.WithEmbedders(embedders),
+    eval.WithK(10),
+    eval.WithJudgeRubric("Score helpfulness, accuracy, and completeness."),
+)
 ```
 
 ### Agent Tool Bindings
@@ -526,9 +570,9 @@ relevancy, _ := rageval.AnswerRelevancy(ctx, embedder, query, answer)
 5 tools for integrating RAG into agent workflows:
 
 ```go
-import "github.com/urmzd/saige/rag/adktool"
+import "github.com/urmzd/saige/rag/tool"
 
-tools := adktool.NewTools(pipeline)
+tools := tool.NewTools(pipeline)
 // rag_search, rag_lookup, rag_update, rag_delete, rag_reconstruct
 ```
 
@@ -578,16 +622,21 @@ graph TB
     subgraph kg["knowledge/ -- Knowledge Graph"]
         kgtypes["knowledge/types/<br/>Graph, Store, Extractor"]
         engine["knowledge/internal/engine/<br/>Extraction, dedup"]
-        surrealdb["knowledge/surrealdb/<br/>SurrealDB backend"]
+        kgpgstore["knowledge/pgstore/<br/>PostgreSQL + pgvector"]
+    end
+
+    subgraph shared["postgres/ -- Shared Infrastructure"]
+        pgpool["postgres/<br/>Pool + migrations"]
     end
 
     subgraph rag["rag/ -- RAG Pipeline"]
         ragtypes["rag/types/<br/>Pipeline, Store, Retriever"]
         pipeline["rag/internal/pipeline/<br/>Ingest, search, RRF"]
+        ragpgstore["rag/pgstore/<br/>PostgreSQL + pgvector"]
         retrievers["rag/vector, bm25,<br/>parent, graph retrievers"]
         rerankers["rag/reranker/<br/>MMR, cross-encoder"]
         chunkers["rag/chunker/<br/>Recursive, semantic"]
-        adktool["rag/adktool/<br/>Agent tool bindings"]
+        tool["rag/tool/<br/>Agent tool bindings"]
     end
 
     agentloop --> agenttypes
@@ -597,15 +646,18 @@ graph TB
     tui --> agentloop
 
     engine --> kgtypes
-    surrealdb --> kgtypes
+    kgpgstore --> kgtypes
+    kgpgstore --> pgpool
+    ragpgstore --> pgpool
 
     pipeline --> ragtypes
+    ragpgstore --> ragtypes
     retrievers --> ragtypes
     rerankers --> ragtypes
     chunkers --> ragtypes
 
-    adktool --> ragtypes
-    adktool -.->|integrates| agenttypes
+    tool --> ragtypes
+    tool -.->|integrates| agenttypes
     retrievers -.->|graphretriever| kgtypes
 ```
 
@@ -619,10 +671,12 @@ graph TB
 | `agent/agenttest/` | `agenttest.go` | ScriptedProvider, MockTool, assertions |
 | `knowledge/` | `config.go`, `query.go`, `ollama.go` | Knowledge graph public API |
 | `knowledge/types/` | `types.go` | Core knowledge graph types and interfaces |
-| `knowledge/surrealdb/` | `store.go`, `schema.go`, `records.go` | SurrealDB store implementation |
+| `knowledge/pgstore/` | `store.go`, `entity.go`, `relation.go`, `episode.go`, `search.go`, `graph.go` | PostgreSQL + pgvector store implementation |
 | `knowledge/internal/` | `engine/`, `extraction/`, `fuzzy/` | Engine orchestration, LLM extraction, dedup |
+| `postgres/` | `pool.go`, `migrate.go` | Shared PostgreSQL connection pool and schema migrations |
 | `rag/` | `config.go`, `version.go` | RAG pipeline configuration |
 | `rag/types/` | `types.go` | Core RAG types and interfaces |
+| `rag/pgstore/` | `store.go`, `document.go`, `section.go`, `variant.go`, `search.go` | PostgreSQL + pgvector RAG store |
 | `rag/internal/` | `pipeline/pipeline.go` | Pipeline engine (ingest, search, RRF) |
 | `rag/chunker/` | `chunker.go`, `semantic.go` | Recursive and semantic chunking |
 | `rag/bm25retriever/` | `retriever.go` | In-memory BM25 lexical search |
@@ -632,9 +686,14 @@ graph TB
 | `rag/reranker/` | `mmr.go`, `crossencoder.go` | MMR + cross-encoder reranking |
 | `rag/hyde/` | `transformer.go` | HyDE query expansion |
 | `rag/contextassembler/` | `compressing.go` | LLM-based context compression |
-| `rag/rageval/` | `eval.go` | Evaluation metrics |
-| `rag/adktool/` | `tools.go` | Agent tool bindings |
+| `rag/eval/` | `eval.go` | Evaluation metrics (NDCG, MRR, HitRate, precision, recall, faithfulness, relevancy, correctness, LLM-as-judge) |
+| `rag/tool/` | `tools.go` | Agent tool bindings |
 | `rag/memstore/` | `store.go` | In-memory store for testing |
+| `rag/embedderregistry/` | `registry.go` | Dispatch embedding by content type |
+| `rag/embeddingcache/` | `cache.go` | Caching layer for embeddings |
+| `rag/extractor/` | `auto.go`, `plaintext.go`, `html.go`, `pdf.go` | Content extraction from raw documents |
+| `rag/source/` | `filesystem.go`, `http.go` | Source URI resolution |
+| `rag/tokenizer/` | `tokenizer.go` | Token counting utilities |
 
 ## License
 

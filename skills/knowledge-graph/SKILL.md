@@ -1,6 +1,6 @@
 ---
 name: knowledge-graph
-description: Build and query knowledge graphs with SurrealDB — ingest episodes, extract entities/relations via LLM, and search facts by semantic similarity or keyword. Use when working with knowledge graphs, entity extraction, or SurrealDB graph storage.
+description: Build and query knowledge graphs with PostgreSQL + pgvector — ingest episodes, extract entities/relations via LLM, and search facts by semantic similarity or keyword. Use when working with knowledge graphs, entity extraction, or graph storage.
 argument-hint: [query]
 ---
 
@@ -13,13 +13,17 @@ Build and query knowledge graphs using `saige/knowledge`.
 ```go
 import (
     "github.com/urmzd/saige/knowledge"
+    "github.com/urmzd/saige/postgres"
     "github.com/urmzd/saige/agent/provider/ollama"
 )
 
-// Connect
+// Connect to PostgreSQL (requires pgvector extension).
+pool, _ := postgres.NewPool(ctx, postgres.Config{URL: "postgres://localhost:5432/mydb"})
+postgres.RunMigrations(ctx, pool, postgres.MigrationOptions{})
+
 client := ollama.NewClient("http://localhost:11434", "qwen2.5", "nomic-embed-text")
 graph, _ := knowledge.NewGraph(ctx,
-    knowledge.WithSurrealDB("ws://localhost:8000", "default", "knowledge", "root", "root"),
+    knowledge.WithPostgres(pool),
     knowledge.WithExtractor(knowledge.NewOllamaExtractor(client)),
     knowledge.WithEmbedder(knowledge.NewOllamaEmbedder(client)),
 )

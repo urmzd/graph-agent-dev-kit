@@ -22,9 +22,9 @@ import (
 	"time"
 
 	"github.com/urmzd/saige/rag"
-	"github.com/urmzd/saige/rag/adktool"
+	"github.com/urmzd/saige/rag/tool"
 	"github.com/urmzd/saige/rag/memstore"
-	"github.com/urmzd/saige/rag/rageval"
+	"github.com/urmzd/saige/rag/eval"
 	"github.com/urmzd/saige/rag/types"
 )
 
@@ -176,6 +176,10 @@ func main() {
 	fmt.Printf("Fetched: %s (%d bytes)\n\n", raw.Metadata["title"], len(raw.Data))
 
 	// 2. Build the pipeline with hybrid search (vector + BM25), recursive chunking, and MMR reranking.
+	// For persistent storage with HNSW vector search, use PostgreSQL + pgvector:
+	//   pool, _ := postgres.NewPool(ctx, postgres.Config{URL: os.Getenv("DATABASE_URL")})
+	//   postgres.RunMigrations(ctx, pool, postgres.MigrationOptions{RAGEmbeddingDim: embedDim})
+	//   store := ragpgstore.NewStore(pool, nil)
 	store := memstore.New()
 	pipe, err := rag.NewPipeline(
 		rag.WithStore(store),
@@ -300,22 +304,22 @@ func main() {
 		relevantUUIDs = append(relevantUUIDs, hit.Variant.UUID)
 	}
 	if len(relevantUUIDs) > 0 {
-		precision := rageval.ContextPrecision(sr.Hits, relevantUUIDs)
-		recall := rageval.ContextRecall(sr.Hits, relevantUUIDs)
+		precision := eval.ContextPrecision(sr.Hits, relevantUUIDs)
+		recall := eval.ContextRecall(sr.Hits, relevantUUIDs)
+		ndcg := eval.NDCG(sr.Hits, relevantUUIDs, 10)
+		mrr := eval.MRR(sr.Hits, relevantUUIDs)
+		hitRate := eval.HitRate(sr.Hits, relevantUUIDs, 10)
 		fmt.Printf("Context Precision: %.3f\n", precision)
 		fmt.Printf("Context Recall:    %.3f\n", recall)
-
-		// Answer relevancy using embedder.
-		relevancy, err := rageval.AnswerRelevancy(ctx, sr.Query, sr.Hits[0].Variant.Text, &bowEmbedderRegistry{})
-		if err == nil {
-			fmt.Printf("Answer Relevancy:  %.3f\n", relevancy)
-		}
+		fmt.Printf("NDCG@10:           %.3f\n", ndcg)
+		fmt.Printf("MRR:               %.3f\n", mrr)
+		fmt.Printf("Hit Rate@10:       %.3f\n", hitRate)
 	}
 	fmt.Println()
 
 	// 10. Show agent tool registration pattern.
 	fmt.Println("=== Agent Tool Registration ===")
-	tools := adktool.NewTools(pipe)
+	tools := tool.NewTools(pipe)
 	for _, tool := range tools {
 		def := tool.Definition()
 		schema, _ := json.MarshalIndent(def.Parameters, "  ", "  ")

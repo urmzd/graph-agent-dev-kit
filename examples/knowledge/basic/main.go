@@ -1,12 +1,12 @@
 // Command basic demonstrates building a knowledge graph with knowledge.
 //
 // Prerequisites:
-//   - SurrealDB running (e.g. surreal start --user root --pass root)
+//   - PostgreSQL running with pgvector extension (e.g. docker run -p 5432:5432 -e POSTGRES_PASSWORD=postgres pgvector/pgvector:pg17)
 //   - Ollama running with a model pulled (e.g. ollama pull llama3.2)
 //
 // Usage:
 //
-//	go run ./examples/basic
+//	go run ./examples/knowledge/basic
 package main
 
 import (
@@ -19,19 +19,35 @@ import (
 	"github.com/urmzd/saige/agent/provider/ollama"
 	"github.com/urmzd/saige/knowledge"
 	"github.com/urmzd/saige/knowledge/types"
+	"github.com/urmzd/saige/postgres"
 )
 
 func main() {
 	ctx := context.Background()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelDebug}))
 
-	// 1. Create Ollama client for LLM extraction and embedding.
-	// Args: host, chat model, embedding model.
+	// 1. Create shared PostgreSQL connection pool.
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		dbURL = "postgres://postgres:postgres@localhost:5432/postgres?sslmode=disable"
+	}
+	pool, err := postgres.NewPool(ctx, postgres.Config{URL: dbURL})
+	if err != nil {
+		log.Fatalf("connect postgres: %v", err)
+	}
+	defer pool.Close()
+
+	// Run migrations to create tables and indexes.
+	if err := postgres.RunMigrations(ctx, pool, postgres.MigrationOptions{}); err != nil {
+		log.Fatalf("migrations: %v", err)
+	}
+
+	// 2. Create Ollama client for LLM extraction and embedding.
 	ollamaClient := ollama.NewClient("http://localhost:11434", "gemma3", "nomic-embed-text")
 
-	// 2. Create the knowledge graph.
+	// 3. Create the knowledge graph.
 	graph, err := knowledge.NewGraph(ctx,
-		knowledge.WithSurrealDB("ws://localhost:8000", "saige", "example", "root", "root"),
+		knowledge.WithPostgres(pool),
 		knowledge.WithExtractor(knowledge.NewOllamaExtractor(ollamaClient)),
 		knowledge.WithEmbedder(knowledge.NewOllamaEmbedder(ollamaClient)),
 		knowledge.WithLogger(logger),
@@ -41,7 +57,7 @@ func main() {
 	}
 	defer graph.Close(ctx)
 
-	// 3. (Optional) Apply an ontology to guide extraction.
+	// 4. (Optional) Apply an ontology to guide extraction.
 	err = graph.ApplyOntology(ctx, &types.Ontology{
 		EntityTypes: []types.EntityTypeDef{
 			{Name: "Person", Description: "A human being"},
@@ -58,7 +74,7 @@ func main() {
 		log.Fatalf("apply ontology: %v", err)
 	}
 
-	// 4. Ingest episodes of text.
+	// 5. Ingest episodes of text.
 	episodes := []types.EpisodeInput{
 		{
 			Name:    "team-intro",
@@ -84,7 +100,7 @@ func main() {
 			result.Name, len(result.EntityNodes), len(result.EpisodicEdges))
 	}
 
-	// 5. Search for facts.
+	// 6. Search for facts.
 	searchResult, err := graph.SearchFacts(ctx, "Who works at Acme?",
 		types.WithLimit(5),
 		types.WithGroupID("engineering"),
@@ -98,14 +114,14 @@ func main() {
 		fmt.Printf("  - %s\n", fact)
 	}
 
-	// 6. Explore the graph.
+	// 7. Explore the graph.
 	graphData, err := graph.GetGraph(ctx, 50)
 	if err != nil {
 		log.Fatalf("get graph: %v", err)
 	}
 	fmt.Printf("\nGraph: %d nodes, %d edges\n", len(graphData.Nodes), len(graphData.Edges))
 
-	// 7. Get node details with neighbors.
+	// 8. Get node details with neighbors.
 	if len(graphData.Nodes) > 0 {
 		detail, err := graph.GetNode(ctx, graphData.Nodes[0].ID, 1)
 		if err != nil {
@@ -113,7 +129,6 @@ func main() {
 		} else {
 			fmt.Printf("Node %q has %d neighbors\n", detail.Node.Name, len(detail.Neighbors))
 
-			// Build a local subgraph from a node detail.
 			sub := knowledge.Subgraph(detail)
 			fmt.Printf("Subgraph: %d nodes, %d edges\n", len(sub.Nodes), len(sub.Edges))
 		}
