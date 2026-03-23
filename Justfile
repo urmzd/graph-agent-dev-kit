@@ -25,6 +25,10 @@ vet:
 fmt:
     gofmt -w .
 
+# Install CLI binary to $GOPATH/bin
+install:
+    CGO_ENABLED=0 go install -trimpath -ldflags="-s -w" ./cmd/saige
+
 # Build all packages
 build:
     go build ./...
