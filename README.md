@@ -48,6 +48,39 @@ Agent orchestration, knowledge graphs, and RAG pipelines are deeply interconnect
 go get github.com/urmzd/saige
 ```
 
+### CLI
+
+The `saige` CLI provides two interaction modes plus standalone RAG/KG operations:
+
+```bash
+# Interactive multi-turn chat (Bubble Tea TUI)
+saige chat
+saige chat --provider anthropic --model claude-sonnet-4-6-20250514
+saige chat --verbose  # plain-text mode for pipes/CI
+
+# Single-shot question (pipe-friendly)
+saige ask "What is retrieval-augmented generation?"
+echo "Explain transformers" | saige ask --raw
+
+# With RAG/KG tools attached to the agent
+saige chat --rag-db "postgres://localhost/mydb" --kg-db "postgres://localhost/mydb"
+saige ask --rag-db "$SAIGE_RAG_DB" "What does the paper say about attention?"
+
+# Standalone RAG operations (JSON output)
+saige rag ingest --db "$SAIGE_RAG_DB" --file paper.pdf --mime application/pdf
+saige rag search --db "$SAIGE_RAG_DB" --query "attention mechanism"
+saige rag lookup --db "$SAIGE_RAG_DB" --uuid <variant-uuid>
+saige rag delete --db "$SAIGE_RAG_DB" --uuid <doc-uuid>
+
+# Standalone KG operations (JSON output)
+saige kg ingest --db "$SAIGE_KG_DB" --name "meeting" --text "Alice presented the roadmap."
+saige kg search --db "$SAIGE_KG_DB" --query "Who presented?"
+saige kg graph  --db "$SAIGE_KG_DB" --limit 50
+saige kg node   --db "$SAIGE_KG_DB" --id <entity-uuid> --depth 2
+```
+
+**Provider auto-detection:** The CLI checks for `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY` in order, falling back to Ollama (no key needed). Override with `--provider` or `SAIGE_PROVIDER`.
+
 ### Build an Agent
 
 ```go
@@ -141,6 +174,7 @@ fmt.Println(result.AssembledContext.Prompt) // context with citations
 
 ## Table of Contents
 
+- [CLI](#cli)
 - [agent — AI Agent Framework](#agent--ai-agent-framework) (providers, deltas, tools, sub-agents, markers, feedback/RLHF, compaction, tree, TUI)
 - [kg — Knowledge Graph SDK](#kg--knowledge-graph-sdk)
 - [rag — RAG Pipeline SDK](#rag--rag-pipeline-sdk)
@@ -567,13 +601,19 @@ results, _ := eval.Evaluate(ctx, cases, pipeline,
 
 ### Agent Tool Bindings
 
-5 tools for integrating RAG into agent workflows:
+5 RAG tools and 2 KG tools for integrating into agent workflows:
 
 ```go
-import "github.com/urmzd/saige/rag/tool"
+import (
+    ragtool "github.com/urmzd/saige/rag/tool"
+    kgtool "github.com/urmzd/saige/knowledge/tool"
+)
 
-tools := tool.NewTools(pipeline)
+ragTools := ragtool.NewTools(pipeline)
 // rag_search, rag_lookup, rag_update, rag_delete, rag_reconstruct
+
+kgTools := kgtool.NewTools(graph)
+// kg_search, kg_ingest
 ```
 
 ---
@@ -609,6 +649,10 @@ npx skills add urmzd/saige
 
 ```mermaid
 graph TB
+    subgraph cli["cmd/saige/ -- CLI"]
+        clicmd["cmd/saige/<br/>chat, ask, rag, kg commands"]
+    end
+
     subgraph agent["agent/ -- AI Agent Framework"]
         agenttypes["agent/types/<br/>Provider, Tool, Delta,<br/>Message, Node, WAL"]
         agentloop["agent/<br/>Agent loop, streaming,<br/>sub-agents"]
@@ -623,6 +667,7 @@ graph TB
         kgtypes["knowledge/types/<br/>Graph, Store, Extractor"]
         engine["knowledge/internal/engine/<br/>Extraction, dedup"]
         kgpgstore["knowledge/pgstore/<br/>PostgreSQL + pgvector"]
+        kgtool["knowledge/tool/<br/>Agent tool bindings"]
     end
 
     subgraph shared["postgres/ -- Shared Infrastructure"]
@@ -636,8 +681,14 @@ graph TB
         retrievers["rag/vector, bm25,<br/>parent, graph retrievers"]
         rerankers["rag/reranker/<br/>MMR, cross-encoder"]
         chunkers["rag/chunker/<br/>Recursive, semantic"]
-        tool["rag/tool/<br/>Agent tool bindings"]
+        ragtool["rag/tool/<br/>Agent tool bindings"]
     end
+
+    clicmd --> agentloop
+    clicmd --> tui
+    clicmd --> ragtool
+    clicmd --> kgtool
+    clicmd --> pgpool
 
     agentloop --> agenttypes
     providers --> agenttypes
@@ -648,6 +699,8 @@ graph TB
     engine --> kgtypes
     kgpgstore --> kgtypes
     kgpgstore --> pgpool
+    kgtool --> kgtypes
+    kgtool -.->|integrates| agenttypes
     ragpgstore --> pgpool
 
     pipeline --> ragtypes
@@ -656,13 +709,14 @@ graph TB
     rerankers --> ragtypes
     chunkers --> ragtypes
 
-    tool --> ragtypes
-    tool -.->|integrates| agenttypes
+    ragtool --> ragtypes
+    ragtool -.->|integrates| agenttypes
     retrievers -.->|graphretriever| kgtypes
 ```
 
 | Package | Files | Purpose |
 |---------|-------|---------|
+| `cmd/saige/` | `main.go`, `chat.go`, `ask.go`, `rag.go`, `kg.go`, `provider.go`, `connect.go` | CLI: chat, ask, rag, kg commands with multi-provider support |
 | `agent/` | `agent.go`, `stream.go`, `subagent.go`, `aggregator.go`, `runner.go` | Agent loop, streaming, sub-agent delegation |
 | `agent/types/` | `message.go`, `delta.go`, `content.go`, `provider.go`, `tool.go`, `errors.go`, `marker.go`, `compactor.go`, `node.go` | Sealed types, interfaces, error classification, feedback |
 | `agent/tree/` | `tree.go`, `flatten.go`, `compact.go`, `diff.go` | Branching conversation tree with feedback leaf nodes |
@@ -672,6 +726,7 @@ graph TB
 | `knowledge/` | `config.go`, `query.go`, `ollama.go` | Knowledge graph public API |
 | `knowledge/types/` | `types.go` | Core knowledge graph types and interfaces |
 | `knowledge/pgstore/` | `store.go`, `entity.go`, `relation.go`, `episode.go`, `search.go`, `graph.go` | PostgreSQL + pgvector store implementation |
+| `knowledge/tool/` | `tools.go` | Agent tool bindings (kg_search, kg_ingest) |
 | `knowledge/internal/` | `engine/`, `extraction/`, `fuzzy/` | Engine orchestration, LLM extraction, dedup |
 | `postgres/` | `pool.go`, `migrate.go` | Shared PostgreSQL connection pool and schema migrations |
 | `rag/` | `config.go`, `version.go` | RAG pipeline configuration |
