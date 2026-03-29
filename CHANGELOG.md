@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.6.1 (2026-03-29)
+
+### Bug Fixes
+
+- **release**: add patch bump for refactor commit type ([7c33ba0](https://github.com/urmzd/saige/commit/7c33ba06b695fe6fe6d2c2d11a002ee8ba54192f))
+
+### Miscellaneous
+
+- **deps**: bump actions/checkout from 4 to 6 ([15902ab](https://github.com/urmzd/saige/commit/15902ab56021e6ef2e1068ae1f6c27b163d370b4))
+- **deps**: bump golang.org/x/net from 0.41.0 to 0.52.0 ([00e495b](https://github.com/urmzd/saige/commit/00e495bb1fdfd9a600230d2b9241a763514d1823))
+- **deps**: bump github.com/openai/openai-go/v3 from 3.27.0 to 3.29.0 ([bbabe89](https://github.com/urmzd/saige/commit/bbabe897056d1539a529055bd787f221fc9a7cba))
+- **deps**: bump github.com/anthropics/anthropic-sdk-go ([66ed8cf](https://github.com/urmzd/saige/commit/66ed8cfec35fc5bfd6aa93595410f16ef690cdc5))
+
+[Full Changelog](https://github.com/urmzd/saige/compare/v0.6.0...v0.6.1)
+
+
 ## 0.6.0 (2026-03-29)
 
 ### Features
