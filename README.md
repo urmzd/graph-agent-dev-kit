@@ -1,7 +1,7 @@
 <p align="center">
   <h1 align="center">saige</h1>
   <p align="center">
-    <strong>Super AI Graph Ecosystem</strong>
+    <strong>Super Artificial Intelligence Graph Environment</strong>
     <br />
     A unified Go SDK for streaming AI agents, knowledge graphs, and RAG pipelines.
     <br /><br />
@@ -28,9 +28,11 @@
 ## Features
 
 - **Streaming-first agent loop** with 15 typed delta events and parallel tool execution
-- **Conversation tree** with branching, checkpoints, rewind, and RLHF feedback
-- **Sub-agent delegation** — child agents as tools, deltas forwarded with attribution
+- **Functional options** — compose agents incrementally with `AgentOption` functions
+- **Conversation tree** with branching, checkpoints, rewind, and RLHF feedback — all context-aware
+- **Sub-agent delegation** — stateless child agents as tools, deltas forwarded with attribution
 - **Human-in-the-loop markers** — gate tool execution pending approval
+- **Structured tool errors** — `IsError` flag on tool results, distinguishable from successful output
 - **Knowledge graph construction** — LLM-powered entity extraction, fuzzy dedup, temporal tracking
 - **Multi-retriever RAG** — vector + BM25 + graph retrieval fused via Reciprocal Rank Fusion
 - **Reranking** — MMR diversity and cross-encoder scoring built in
@@ -97,6 +99,18 @@ a := agent.NewAgent(agent.AgentConfig{
     Provider:     ollama.NewAdapter(client),
     Tools:        types.NewToolRegistry(myTool),
 })
+
+// Or compose incrementally with functional options:
+a := agent.NewAgent(agent.AgentConfig{
+    Name:         "assistant",
+    SystemPrompt: "You are a helpful assistant.",
+    Provider:     ollama.NewAdapter(client),
+    Tools:        types.NewToolRegistry(myTool),
+},
+    agent.WithMaxIter(20),
+    agent.WithLogger(slog.Default()),
+    agent.WithMetrics(myMetrics),
+)
 
 stream := a.Invoke(ctx, []types.Message{types.NewUserMessage("Hello!")})
 for delta := range stream.Deltas() {
@@ -180,7 +194,6 @@ fmt.Println(result.AssembledContext.Prompt) // context with citations
 - [rag — RAG Pipeline SDK](#rag--rag-pipeline-sdk)
 - [Examples](#examples)
 - [Agent Skill](#agent-skill)
-- [Architecture](#architecture)
 
 ---
 
@@ -216,6 +229,8 @@ Three roles. Tool results are content blocks, not a separate role.
 | `SystemMessage` | system | `TextContent`, `ToolResultContent`, `ConfigContent` |
 | `UserMessage` | user | `TextContent`, `ToolResultContent`, `ConfigContent`, `FileContent` |
 | `AssistantMessage` | assistant | `TextContent`, `ToolUseContent` |
+
+`ToolResultContent` carries an `IsError` field that signals whether the text represents an error or a successful result. This distinction is preserved through to the LLM — Anthropic passes it natively, Google uses an `error` key in the function response, and OpenAI/Ollama prefix the text with `[TOOL ERROR]`.
 
 ### Deltas
 
@@ -263,7 +278,7 @@ When the LLM requests multiple tool calls, all tools execute **concurrently**.
 
 ### Sub-Agents
 
-Sub-agents are registered as tools and execute within parallel tool dispatch. Their deltas are forwarded through the parent's stream:
+Sub-agents are registered as tools and execute within parallel tool dispatch. Their deltas are forwarded through the parent's stream. **Sub-agents are stateless** — a fresh agent is constructed for each delegation, so conversation history is not preserved between calls. This is intentional: sub-agents are task executors, not persistent conversational partners.
 
 ```go
 a := agent.NewAgent(agent.AgentConfig{
@@ -300,9 +315,8 @@ Constrain LLM responses to a JSON schema:
 ```go
 schema := types.SchemaFrom[MyResponse]()
 a := agent.NewAgent(agent.AgentConfig{
-    Provider:       adapter,
-    ResponseSchema: schema,
-})
+    Provider: adapter,
+}, agent.WithResponseSchema(schema))
 ```
 
 ### Provider Resilience
@@ -331,11 +345,13 @@ Data-driven context management:
 
 ### Conversation Tree
 
-Persistent branching conversation graph with checkpoints, rewind, and archive:
+Persistent branching conversation graph with checkpoints, rewind, and archive. All mutation methods (`AddChild`, `Branch`, `UpdateUserMessage`, `AddFeedback`) accept a `context.Context` for cancellation, deadlines, and tracing — including WAL writes:
 
 ```go
 tr := a.Tree()
-tr.Branch(nodeID, "experiment", msg)
+tr.AddChild(ctx, parentID, msg)
+tr.Branch(ctx, nodeID, "experiment", msg)
+tr.UpdateUserMessage(ctx, nodeID, newMsg)
 tr.Checkpoint(branchID, "before-refactor")
 tr.Rewind(checkpointID)
 ```
@@ -347,8 +363,8 @@ Attach positive/negative ratings and comments to any node in the conversation tr
 ```go
 // Rate an assistant response.
 tip, _ := a.Tree().Tip(a.Tree().Active())
-a.Feedback(tip.ID, types.RatingPositive, "Clear and helpful")
-a.Feedback(tip.ID, types.RatingNegative, "Too verbose")
+a.Feedback(ctx, tip.ID, types.RatingPositive, "Clear and helpful")
+a.Feedback(ctx, tip.ID, types.RatingNegative, "Too verbose")
 
 // Collect all feedback across the tree.
 for _, entry := range a.FeedbackSummary() {
@@ -366,14 +382,15 @@ Automatic URI resolution and content negotiation for multi-modal input:
 ```go
 a := agent.NewAgent(agent.AgentConfig{
     Provider: adapter,
-    Resolvers: map[string]types.Resolver{
+},
+    agent.WithResolvers(map[string]types.Resolver{
         "file": myFileResolver,
         "s3":   myS3Resolver,
-    },
-    Extractors: map[types.MediaType]types.Extractor{
+    }),
+    agent.WithExtractors(map[types.MediaType]types.Extractor{
         types.MediaPDF: myPDFExtractor,
-    },
-})
+    }),
+)
 ```
 
 ### TUI
@@ -641,114 +658,7 @@ go run ./examples/rag/arxiv/
 
 ## Agent Skill
 
-```bash
-npx skills add urmzd/saige
-```
-
-## Architecture
-
-```mermaid
-graph TB
-    subgraph cli["cmd/saige/ -- CLI"]
-        clicmd["cmd/saige/<br/>chat, ask, rag, kg commands"]
-    end
-
-    subgraph agent["agent/ -- AI Agent Framework"]
-        agenttypes["agent/types/<br/>Provider, Tool, Delta,<br/>Message, Node, WAL"]
-        agentloop["agent/<br/>Agent loop, streaming,<br/>sub-agents"]
-        providers["agent/provider/<br/>ollama, openai,<br/>anthropic, google"]
-        resilience["agent/provider/<br/>retry, fallback"]
-        tree["agent/tree/<br/>Conversation graph"]
-        tui["agent/tui/<br/>Terminal UI"]
-        agenttest["agent/agenttest/<br/>Test utilities"]
-    end
-
-    subgraph kg["knowledge/ -- Knowledge Graph"]
-        kgtypes["knowledge/types/<br/>Graph, Store, Extractor"]
-        engine["knowledge/internal/engine/<br/>Extraction, dedup"]
-        kgpgstore["knowledge/pgstore/<br/>PostgreSQL + pgvector"]
-        kgtool["knowledge/tool/<br/>Agent tool bindings"]
-    end
-
-    subgraph shared["postgres/ -- Shared Infrastructure"]
-        pgpool["postgres/<br/>Pool + migrations"]
-    end
-
-    subgraph rag["rag/ -- RAG Pipeline"]
-        ragtypes["rag/types/<br/>Pipeline, Store, Retriever"]
-        pipeline["rag/internal/pipeline/<br/>Ingest, search, RRF"]
-        ragpgstore["rag/pgstore/<br/>PostgreSQL + pgvector"]
-        retrievers["rag/vector, bm25,<br/>parent, graph retrievers"]
-        rerankers["rag/reranker/<br/>MMR, cross-encoder"]
-        chunkers["rag/chunker/<br/>Recursive, semantic"]
-        ragtool["rag/tool/<br/>Agent tool bindings"]
-    end
-
-    clicmd --> agentloop
-    clicmd --> tui
-    clicmd --> ragtool
-    clicmd --> kgtool
-    clicmd --> pgpool
-
-    agentloop --> agenttypes
-    providers --> agenttypes
-    resilience --> providers
-    tree --> agenttypes
-    tui --> agentloop
-
-    engine --> kgtypes
-    kgpgstore --> kgtypes
-    kgpgstore --> pgpool
-    kgtool --> kgtypes
-    kgtool -.->|integrates| agenttypes
-    ragpgstore --> pgpool
-
-    pipeline --> ragtypes
-    ragpgstore --> ragtypes
-    retrievers --> ragtypes
-    rerankers --> ragtypes
-    chunkers --> ragtypes
-
-    ragtool --> ragtypes
-    ragtool -.->|integrates| agenttypes
-    retrievers -.->|graphretriever| kgtypes
-```
-
-| Package | Files | Purpose |
-|---------|-------|---------|
-| `cmd/saige/` | `main.go`, `chat.go`, `ask.go`, `rag.go`, `kg.go`, `provider.go`, `connect.go` | CLI: chat, ask, rag, kg commands with multi-provider support |
-| `agent/` | `agent.go`, `stream.go`, `subagent.go`, `aggregator.go`, `runner.go` | Agent loop, streaming, sub-agent delegation |
-| `agent/types/` | `message.go`, `delta.go`, `content.go`, `provider.go`, `tool.go`, `errors.go`, `marker.go`, `compactor.go`, `node.go` | Sealed types, interfaces, error classification, feedback |
-| `agent/tree/` | `tree.go`, `flatten.go`, `compact.go`, `diff.go` | Branching conversation tree with feedback leaf nodes |
-| `agent/provider/` | `ollama/`, `openai/`, `anthropic/`, `google/`, `retry/`, `fallback/` | LLM adapters and resilience wrappers |
-| `agent/tui/` | `stream.go`, `styles.go`, `runner.go` | Bubbletea + verbose streaming UI |
-| `agent/agenttest/` | `agenttest.go` | ScriptedProvider, MockTool, assertions |
-| `knowledge/` | `config.go`, `query.go`, `ollama.go` | Knowledge graph public API |
-| `knowledge/types/` | `types.go` | Core knowledge graph types and interfaces |
-| `knowledge/pgstore/` | `store.go`, `entity.go`, `relation.go`, `episode.go`, `search.go`, `graph.go` | PostgreSQL + pgvector store implementation |
-| `knowledge/tool/` | `tools.go` | Agent tool bindings (kg_search, kg_ingest) |
-| `knowledge/internal/` | `engine/`, `extraction/`, `fuzzy/` | Engine orchestration, LLM extraction, dedup |
-| `postgres/` | `pool.go`, `migrate.go` | Shared PostgreSQL connection pool and schema migrations |
-| `rag/` | `config.go`, `version.go` | RAG pipeline configuration |
-| `rag/types/` | `types.go` | Core RAG types and interfaces |
-| `rag/pgstore/` | `store.go`, `document.go`, `section.go`, `variant.go`, `search.go` | PostgreSQL + pgvector RAG store |
-| `rag/internal/` | `pipeline/pipeline.go` | Pipeline engine (ingest, search, RRF) |
-| `rag/chunker/` | `chunker.go`, `semantic.go` | Recursive and semantic chunking |
-| `rag/bm25retriever/` | `retriever.go` | In-memory BM25 lexical search |
-| `rag/vectorretriever/` | `retriever.go` | Vector similarity search |
-| `rag/graphretriever/` | `retriever.go` | Knowledge graph retrieval |
-| `rag/parentretriever/` | `retriever.go` | Parent context expansion |
-| `rag/reranker/` | `mmr.go`, `crossencoder.go` | MMR + cross-encoder reranking |
-| `rag/hyde/` | `transformer.go` | HyDE query expansion |
-| `rag/contextassembler/` | `compressing.go` | LLM-based context compression |
-| `rag/eval/` | `eval.go` | Evaluation metrics (NDCG, MRR, HitRate, precision, recall, faithfulness, relevancy, correctness, LLM-as-judge) |
-| `rag/tool/` | `tools.go` | Agent tool bindings |
-| `rag/memstore/` | `store.go` | In-memory store for testing |
-| `rag/embedderregistry/` | `registry.go` | Dispatch embedding by content type |
-| `rag/embeddingcache/` | `cache.go` | Caching layer for embeddings |
-| `rag/extractor/` | `auto.go`, `plaintext.go`, `html.go`, `pdf.go` | Content extraction from raw documents |
-| `rag/source/` | `filesystem.go`, `http.go` | Source URI resolution |
-| `rag/tokenizer/` | `tokenizer.go` | Token counting utilities |
+This repo's conventions are available as portable agent skills in [`skills/`](skills/).
 
 ## License
 
