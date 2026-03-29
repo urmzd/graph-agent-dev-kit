@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.5.0 (2026-03-29)
+
+### Breaking Changes
+
+- **rag**: extract context assembler to dedicated package ([0ba981c](https://github.com/urmzd/saige/commit/0ba981c0ccb915fb8602129f9003a82314f2b83f))
+- **tree**: propagate context through tree operations ([d0ae090](https://github.com/urmzd/saige/commit/d0ae090f3b9397687d33c6640667347aa7050b69))
+
+### Features
+
+- **provider**: handle structured tool errors across adapters ([f878467](https://github.com/urmzd/saige/commit/f878467849967c71ab06a2bddef085a74babd0a7))
+- **agent**: add functional options pattern ([686db0e](https://github.com/urmzd/saige/commit/686db0ebf317af6f70ade4149c3312b50cc09975))
+- **types**: add IsError flag to tool results ([a0df939](https://github.com/urmzd/saige/commit/a0df939d1ccdfd212fad1c349a045946e2d69f01))
+
+### Documentation
+
+- update README with new features and examples ([a6e641c](https://github.com/urmzd/saige/commit/a6e641cc8c0e73f364fdab28378286964aa4b770))
+
+### Miscellaneous
+
+- **agent**: update for context propagation and error handling ([18729b7](https://github.com/urmzd/saige/commit/18729b7e910533ab2b7a09092505db44268bd503))
+
+[Full Changelog](https://github.com/urmzd/saige/compare/v0.4.1...v0.5.0)
+
+
 ## 0.4.1 (2026-03-28)
 
 ### Bug Fixes
