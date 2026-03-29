@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.6.0 (2026-03-29)
+
+### Features
+
+- **tui**: add unified Output interface and template system ([0e0f02a](https://github.com/urmzd/saige/commit/0e0f02aa022bdff50b418f54f94f1c1b43629cf9))
+
+### Bug Fixes
+
+- **tui**: reduce cyclomatic complexity in stream rendering ([6a8c351](https://github.com/urmzd/saige/commit/6a8c351e4fa19f14149aac0248a80a51a35e05b6))
+
+[Full Changelog](https://github.com/urmzd/saige/compare/v0.5.0...v0.6.0)
+
+
 ## 0.5.0 (2026-03-29)
 
 ### Breaking Changes
