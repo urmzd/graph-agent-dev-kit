@@ -327,6 +327,69 @@ func mergeConfig(rc *resolvedConfig, cc types.ConfigContent) {
 	}
 }
 
+// persistCompacted forks a new branch off the tree root and adds the compacted
+// messages (skipping the first, which is the system message already on root).
+// Returns the new branch ID.
+func (a *Agent) persistCompacted(ctx context.Context, tr *tree.Tree, compacted []types.Message) (types.BranchID, error) {
+	root := tr.Root()
+	if len(compacted) < 2 {
+		return "", fmt.Errorf("compacted history too short to branch")
+	}
+
+	// First compacted message is the system prompt (same as root) — skip it.
+	// Branch from root with the second message (the summary).
+	branchID, _, err := tr.Branch(ctx, root.ID, "compact", compacted[1])
+	if err != nil {
+		return "", fmt.Errorf("branch from root: %w", err)
+	}
+
+	// Add remaining compacted messages (the preserved recent context).
+	for _, msg := range compacted[2:] {
+		tip, err := tr.Tip(branchID)
+		if err != nil {
+			return "", fmt.Errorf("tip lookup: %w", err)
+		}
+		if _, err := tr.AddChild(ctx, tip.ID, msg); err != nil {
+			return "", fmt.Errorf("add compacted child: %w", err)
+		}
+	}
+
+	// Set the compacted branch as active so future Invoke calls use it.
+	if err := tr.SetActive(branchID); err != nil {
+		return "", fmt.Errorf("set active: %w", err)
+	}
+
+	return branchID, nil
+}
+
+// tryCompact attempts compaction if configured. Returns the new branch ID and
+// true if compaction succeeded and the caller should re-flatten from the new branch.
+func (a *Agent) tryCompact(ctx context.Context, log *slog.Logger, resolved resolvedConfig, llmMessages []types.Message, tr *tree.Tree) (types.BranchID, bool) {
+	if resolved.compactor == nil {
+		if resolved.compactNow {
+			log.Warn("compactNow requested but no compactor configured, ignoring")
+		}
+		return "", false
+	}
+
+	compacted, err := resolved.compactor.Compact(ctx, llmMessages, a.cfg.Provider)
+	if err != nil {
+		log.Warn("compaction failed, continuing with full history", "error", err)
+		return "", false
+	}
+	if len(compacted) >= len(llmMessages) {
+		return "", false
+	}
+
+	newBranch, err := a.persistCompacted(ctx, tr, compacted)
+	if err != nil {
+		log.Warn("failed to persist compacted branch", "error", err)
+		return "", false
+	}
+	log.Debug("compacted to new branch", "branch", newBranch)
+	return newBranch, true
+}
+
 // callProvider invokes the LLM, using structured output when available.
 func (a *Agent) callProvider(ctx context.Context, messages []types.Message, tools []types.ToolDef) (<-chan types.Delta, error) {
 	if a.cfg.ResponseSchema != nil && len(tools) == 0 {
@@ -479,14 +542,10 @@ func (a *Agent) runLoop(ctx context.Context, stream *EventStream, input []types.
 		// Resolve file URIs to data.
 		llmMessages = a.resolveFiles(ctx, llmMessages)
 
-		// Compact if configured.
-		if resolved.compactNow || resolved.compactor != nil {
-			if resolved.compactor != nil {
-				compacted, err := resolved.compactor.Compact(ctx, llmMessages, a.cfg.Provider)
-				if err == nil {
-					llmMessages = compacted
-				}
-			}
+		// Compact if configured: summarize, fork a new branch off root, continue.
+		if newBranch, compacted := a.tryCompact(ctx, log, resolved, llmMessages, tr); compacted {
+			branch = newBranch
+			continue // re-flatten from the new branch
 		}
 
 		// Call LLM + timing.

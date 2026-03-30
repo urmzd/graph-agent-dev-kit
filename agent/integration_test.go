@@ -981,7 +981,7 @@ func TestSlidingWindowCompactorBelowWindow(t *testing.T) {
 }
 
 func TestSummarizeCompactorBelowThreshold(t *testing.T) {
-	compactor := types.NewSummarizeCompactor(10)
+	compactor := types.NewSummarizeCompactor(10, 0)
 	msgs := []types.Message{
 		types.NewSystemMessage("sys"),
 		types.NewUserMessage("one"),
@@ -998,7 +998,7 @@ func TestSummarizeCompactorBelowThreshold(t *testing.T) {
 
 func TestSummarizeCompactorAboveThreshold(t *testing.T) {
 	provider := &mockProvider{response: "conversation summary"}
-	compactor := types.NewSummarizeCompactor(3)
+	compactor := types.NewSummarizeCompactor(3, 0)
 
 	msgs := []types.Message{
 		types.NewSystemMessage("sys"),
@@ -1039,7 +1039,7 @@ func TestSummarizeCompactorAboveThreshold(t *testing.T) {
 
 func TestSummarizeCompactorProviderError(t *testing.T) {
 	provider := &errorProvider{err: errors.New("provider down")}
-	compactor := types.NewSummarizeCompactor(2)
+	compactor := types.NewSummarizeCompactor(2, 0)
 
 	msgs := []types.Message{
 		types.NewSystemMessage("sys"),
@@ -2799,18 +2799,32 @@ func TestAgentWithSummarizeCompactor(t *testing.T) {
 		Tree:       tr,
 	})
 
-	// Multiple turns
+	// Multiple turns — each Invoke uses tr.Active(), which may change after compaction.
 	for i := 0; i < 4; i++ {
 		stream := agent.Invoke(context.Background(), []types.Message{types.NewUserMessage(fmt.Sprintf("turn-%d", i))})
 		collectDeltas(stream)
 		stream.Wait()
 	}
 
-	// Tree should have all messages
-	msgs, _ := tr.FlattenBranch("main")
-	// sys + 4*(user + asst) = 9
-	if len(msgs) != 9 {
-		t.Errorf("tree messages = %d, want 9", len(msgs))
+	// After compaction, the active branch may have been forked from root.
+	// The original main branch is preserved; the active branch has compacted history.
+	activeBranch := tr.Active()
+	msgs, err := tr.FlattenBranch(activeBranch)
+	if err != nil {
+		t.Fatalf("FlattenBranch(%s): %v", activeBranch, err)
+	}
+	// Active branch should have messages (at least sys + summary + recent context).
+	if len(msgs) < 3 {
+		t.Errorf("active branch messages = %d, want >= 3", len(msgs))
+	}
+
+	// Original main branch should still exist and be untouched.
+	mainMsgs, err := tr.FlattenBranch("main")
+	if err != nil {
+		t.Fatalf("FlattenBranch(main): %v", err)
+	}
+	if len(mainMsgs) == 0 {
+		t.Error("main branch should not be empty")
 	}
 }
 
@@ -2990,7 +3004,7 @@ func TestSlidingWindowPreservesSystem(t *testing.T) {
 // ===================================================================
 
 func TestSummarizeCompactorFewMessages(t *testing.T) {
-	compactor := types.NewSummarizeCompactor(2)
+	compactor := types.NewSummarizeCompactor(2, 0)
 	provider := &mockProvider{response: "summary"}
 
 	msgs := []types.Message{
@@ -3329,5 +3343,309 @@ func TestFeedbackReplay(t *testing.T) {
 	}
 	if !gotFeedback {
 		t.Fatal("expected FeedbackDelta during replay")
+	}
+}
+
+// ===================================================================
+// persistCompacted tests
+// ===================================================================
+
+func TestPersistCompactedCreatesBranch(t *testing.T) {
+	tr, _ := tree.New(types.NewSystemMessage("sys"))
+	agent := NewAgent(AgentConfig{
+		Provider:     &mockProvider{response: "ok"},
+		SystemPrompt: "sys",
+		Tree:         tr,
+	})
+
+	compacted := []types.Message{
+		types.NewSystemMessage("sys"),
+		types.NewUserMessage("Previous conversation summary: stuff happened"),
+		types.NewUserMessage("recent-1"),
+		types.AssistantMessage{Content: []types.AssistantContent{types.TextContent{Text: "recent-2"}}},
+	}
+
+	branchID, err := agent.persistCompacted(context.Background(), tr, compacted)
+	if err != nil {
+		t.Fatalf("persistCompacted: %v", err)
+	}
+
+	// The new branch should be active.
+	if tr.Active() != branchID {
+		t.Errorf("active = %s, want %s", tr.Active(), branchID)
+	}
+
+	// Flatten should have sys + 3 compacted messages.
+	msgs, err := tr.FlattenBranch(branchID)
+	if err != nil {
+		t.Fatalf("FlattenBranch: %v", err)
+	}
+	if len(msgs) != 4 {
+		t.Errorf("messages = %d, want 4", len(msgs))
+	}
+}
+
+func TestPersistCompactedTooShortReturnsError(t *testing.T) {
+	tr, _ := tree.New(types.NewSystemMessage("sys"))
+	agent := NewAgent(AgentConfig{
+		Provider:     &mockProvider{response: "ok"},
+		SystemPrompt: "sys",
+		Tree:         tr,
+	})
+
+	// Only one message — too short to branch.
+	_, err := agent.persistCompacted(context.Background(), tr, []types.Message{
+		types.NewSystemMessage("sys"),
+	})
+	if err == nil {
+		t.Fatal("expected error for short compacted history")
+	}
+}
+
+// ===================================================================
+// tryCompact tests
+// ===================================================================
+
+func TestTryCompactNoCompactorNoOp(t *testing.T) {
+	agent := NewAgent(AgentConfig{
+		Provider:     &mockProvider{response: "ok"},
+		SystemPrompt: "sys",
+	})
+
+	rc := resolvedConfig{maxIter: 10}
+	msgs := []types.Message{types.NewSystemMessage("sys"), types.NewUserMessage("hi")}
+
+	_, compacted := agent.tryCompact(context.Background(), agent.cfg.Logger, rc, msgs, agent.cfg.Tree)
+	if compacted {
+		t.Error("should not compact without compactor")
+	}
+}
+
+func TestTryCompactBelowThresholdNoOp(t *testing.T) {
+	agent := NewAgent(AgentConfig{
+		Provider:     &mockProvider{response: "ok"},
+		SystemPrompt: "sys",
+	})
+
+	// Compactor with high threshold — won't trigger.
+	rc := resolvedConfig{
+		maxIter:   10,
+		compactor: types.NewSummarizeCompactor(100, 4),
+	}
+	msgs := []types.Message{types.NewSystemMessage("sys"), types.NewUserMessage("hi")}
+
+	_, compacted := agent.tryCompact(context.Background(), agent.cfg.Logger, rc, msgs, agent.cfg.Tree)
+	if compacted {
+		t.Error("should not compact below threshold")
+	}
+}
+
+func TestTryCompactSuccessReturnsTrueAndNewBranch(t *testing.T) {
+	provider := &mockProvider{response: "summary of conversation"}
+	tr, _ := tree.New(types.NewSystemMessage("sys"))
+
+	// Build up enough messages on main branch to trigger summarize.
+	current := tr.Root()
+	for i := 0; i < 6; i++ {
+		var msg types.Message
+		if i%2 == 0 {
+			msg = types.NewUserMessage(fmt.Sprintf("user-%d", i))
+		} else {
+			msg = types.AssistantMessage{Content: []types.AssistantContent{types.TextContent{Text: fmt.Sprintf("asst-%d", i)}}}
+		}
+		node, _ := tr.AddChild(context.Background(), current.ID, msg)
+		current = node
+	}
+
+	agent := NewAgent(AgentConfig{
+		Provider:     provider,
+		SystemPrompt: "sys",
+		Tree:         tr,
+	})
+
+	msgs, _ := tr.FlattenBranch("main")
+	rc := resolvedConfig{
+		maxIter:   10,
+		compactor: types.NewSummarizeCompactor(3, 2), // threshold=3, keepLast=2
+	}
+
+	newBranch, compacted := agent.tryCompact(context.Background(), agent.cfg.Logger, rc, msgs, tr)
+	if !compacted {
+		t.Fatal("expected compaction to succeed")
+	}
+	if newBranch == "" {
+		t.Fatal("expected non-empty branch ID")
+	}
+	if tr.Active() != newBranch {
+		t.Errorf("active = %s, want %s", tr.Active(), newBranch)
+	}
+}
+
+// ===================================================================
+// SlidingWindowCompactor tool-pair integrity
+// ===================================================================
+
+func TestSlidingWindowPreservesToolPair(t *testing.T) {
+	compactor := types.NewSlidingWindowCompactor(2)
+
+	// The cut point would land on a tool result — compactor should back up one.
+	msgs := []types.Message{
+		types.NewSystemMessage("sys"),
+		types.NewUserMessage("old"),
+		types.AssistantMessage{Content: []types.AssistantContent{
+			types.ToolUseContent{ID: "tc-1", Name: "search", Arguments: map[string]any{"q": "x"}},
+		}},
+		types.NewToolResultMessage(types.ToolResultContent{ToolCallID: "tc-1", Text: "result"}),
+		types.NewUserMessage("recent"),
+	}
+
+	result, err := compactor.Compact(context.Background(), msgs, nil)
+	if err != nil {
+		t.Fatalf("Compact: %v", err)
+	}
+
+	// Should keep system + assistant(tool-call) + tool-result + recent = 4
+	// (backed up to include the tool-call with its result)
+	if len(result) != 4 {
+		t.Errorf("messages = %d, want 4 (tool pair preserved)", len(result))
+	}
+
+	// First must be system.
+	if result[0].Role() != types.RoleSystem {
+		t.Error("first message should be system")
+	}
+}
+
+func TestSlidingWindowNoCutWhenToolPairAtStart(t *testing.T) {
+	compactor := types.NewSlidingWindowCompactor(2)
+
+	// Tool result is right after system — backing up would make cut <= 0.
+	msgs := []types.Message{
+		types.NewSystemMessage("sys"),
+		types.NewToolResultMessage(types.ToolResultContent{ToolCallID: "tc-1", Text: "result"}),
+		types.NewUserMessage("recent-1"),
+		types.NewUserMessage("recent-2"),
+	}
+
+	result, err := compactor.Compact(context.Background(), msgs, nil)
+	if err != nil {
+		t.Fatalf("Compact: %v", err)
+	}
+
+	// cut would be 2, messages[2] is not a tool result, so normal windowing.
+	if len(result) != 3 {
+		t.Errorf("messages = %d, want 3", len(result))
+	}
+}
+
+// ===================================================================
+// SummarizeCompactor configurable KeepLast
+// ===================================================================
+
+func TestSummarizeCompactorCustomKeepLast(t *testing.T) {
+	provider := &mockProvider{response: "summary"}
+	compactor := types.NewSummarizeCompactor(3, 2)
+
+	msgs := []types.Message{
+		types.NewSystemMessage("sys"),
+		types.NewUserMessage("old-1"),
+		types.NewUserMessage("old-2"),
+		types.NewUserMessage("recent-1"),
+		types.NewUserMessage("recent-2"),
+	}
+
+	result, err := compactor.Compact(context.Background(), msgs, provider)
+	if err != nil {
+		t.Fatalf("Compact: %v", err)
+	}
+
+	// sys + summary + 2 recent = 4
+	if len(result) != 4 {
+		t.Errorf("messages = %d, want 4", len(result))
+	}
+}
+
+func TestSummarizeCompactorDefaultKeepLast(t *testing.T) {
+	compactor := types.NewSummarizeCompactor(3, 0)
+	if compactor.KeepLast != 4 {
+		t.Errorf("KeepLast = %d, want 4 (default)", compactor.KeepLast)
+	}
+}
+
+// ===================================================================
+// CompactConfig.ToCompactor with KeepLast
+// ===================================================================
+
+func TestCompactConfigKeepLastPassthrough(t *testing.T) {
+	cfg := types.CompactConfig{
+		Strategy:  types.CompactSummarize,
+		Threshold: 10,
+		KeepLast:  6,
+	}
+	c := cfg.ToCompactor()
+	sc, ok := c.(*types.SummarizeCompactor)
+	if !ok {
+		t.Fatalf("expected *SummarizeCompactor, got %T", c)
+	}
+	if sc.KeepLast != 6 {
+		t.Errorf("KeepLast = %d, want 6", sc.KeepLast)
+	}
+}
+
+// ===================================================================
+// MessagesToText with ToolUseContent
+// ===================================================================
+
+func TestMessagesToTextToolUseContent(t *testing.T) {
+	msgs := []types.Message{
+		types.AssistantMessage{Content: []types.AssistantContent{
+			types.ToolUseContent{ID: "tc-42", Name: "web_search", Arguments: map[string]any{"q": "test"}},
+		}},
+	}
+
+	text := types.MessagesToText(msgs)
+	if !strings.Contains(text, "Tool Call [tc-42]: web_search") {
+		t.Errorf("expected tool call text, got: %s", text)
+	}
+}
+
+func TestMessagesToTextMixedAssistantContent(t *testing.T) {
+	msgs := []types.Message{
+		types.AssistantMessage{Content: []types.AssistantContent{
+			types.TextContent{Text: "Let me search for that."},
+			types.ToolUseContent{ID: "tc-1", Name: "search", Arguments: map[string]any{}},
+		}},
+	}
+
+	text := types.MessagesToText(msgs)
+	if !strings.Contains(text, "Assistant: Let me search for that.") {
+		t.Error("missing assistant text")
+	}
+	if !strings.Contains(text, "Tool Call [tc-1]: search") {
+		t.Error("missing tool call")
+	}
+}
+
+// ===================================================================
+// hasToolResult helper (tested via SlidingWindowCompactor)
+// ===================================================================
+
+func TestHasToolResultInSystemMessage(t *testing.T) {
+	toolResult := types.NewToolResultMessage(types.ToolResultContent{ToolCallID: "tc-1", Text: "result"})
+	compactor := types.NewSlidingWindowCompactor(2)
+
+	// cut = len(5) - 2 = 3 → messages[3] is the tool result → should back up.
+	msgs := []types.Message{
+		types.NewSystemMessage("sys"),
+		types.NewUserMessage("old-1"),
+		types.NewUserMessage("old-2"),
+		toolResult,
+		types.NewUserMessage("recent"),
+	}
+
+	result, _ := compactor.Compact(context.Background(), msgs, nil)
+	// Backed up: system + old-2 + tool-result + recent = 4 (instead of 3).
+	if len(result) != 4 {
+		t.Errorf("messages = %d, want 4 (tool result preserved with preceding message)", len(result))
 	}
 }
