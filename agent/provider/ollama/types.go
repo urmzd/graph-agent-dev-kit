@@ -69,10 +69,12 @@ type GenerateRequest struct {
 	Stream  bool   `json:"stream"`
 	Format  any    `json:"format,omitempty"`
 	Options any    `json:"options,omitempty"`
+	Think   *bool  `json:"think,omitempty"`
 }
 
 type GenerateResponse struct {
 	Response string `json:"response"`
+	Thinking string `json:"thinking,omitempty"`
 	Done     bool   `json:"done"`
 }
 

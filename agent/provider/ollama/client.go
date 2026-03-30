@@ -78,8 +78,12 @@ func (c *Client) GenerateWithModel(ctx context.Context, prompt, model string, fo
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
 		return "", fmt.Errorf("decode ollama response: %w", err)
 	}
-	c.Logger.Printf("[ollama] generate done, response_len=%d", len(result.Response))
-	return result.Response, nil
+	response := result.Response
+	if response == "" && result.Thinking != "" {
+		response = result.Thinking
+	}
+	c.Logger.Printf("[ollama] generate done, response_len=%d", len(response))
+	return response, nil
 }
 
 // GenerateStream sends a streaming generate request.
