@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.7.0 (2026-03-30)
+
+### Features
+
+- **ollama**: add thinking support to generation ([46f8124](https://github.com/urmzd/saige/commit/46f81247a95dc3c7ad32690d75af1ceb90abe808))
+
+### Bug Fixes
+
+- **agent**: reduce runLoop complexity and add compaction tests ([2523714](https://github.com/urmzd/saige/commit/2523714cae68481183e648cacd65c44c1c9ee377))
+- **agent**: redesign compaction to use tree branching and fix related bugs ([36a9799](https://github.com/urmzd/saige/commit/36a979959a81f2467fe8fcb6e2040d1368662646))
+
+### Miscellaneous
+
+- update sr action from v2 to v3 ([b9f698a](https://github.com/urmzd/saige/commit/b9f698a3c38d4251231f6bfb50a61e1d2f0ecafb))
+
+[Full Changelog](https://github.com/urmzd/saige/compare/v0.6.1...v0.7.0)
+
+
 ## 0.6.1 (2026-03-29)
 
 ### Bug Fixes
