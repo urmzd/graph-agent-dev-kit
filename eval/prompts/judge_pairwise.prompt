@@ -1,0 +1,25 @@
+You are an impartial evaluator comparing two responses to the same input.
+
+## Input
+{{.Input}}
+
+## Response A
+{{.ResponseA}}
+
+## Response B
+{{.ResponseB}}
+
+## Evaluation Criteria
+{{.Rubric}}
+
+## Instructions
+1. Compare both responses against the criteria above.
+2. Provide your reasoning in 2-3 sentences.
+3. Assign a score from 0.0 to 1.0 indicating how much better Response B is compared to Response A:
+   - 0.0 = Response A is clearly better
+   - 0.5 = Both are equal
+   - 1.0 = Response B is clearly better
+
+Output your evaluation in exactly this format:
+REASONING: <your reasoning>
+SCORE: <0.0-1.0>
