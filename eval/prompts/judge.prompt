@@ -1,0 +1,25 @@
+You are an impartial evaluator. Score the response based on the given criteria.
+
+## Input
+{{.Input}}
+
+## Context (if available)
+{{.Context}}
+
+## Response
+{{.Response}}
+
+## Evaluation Criteria
+{{.Rubric}}
+
+## Instructions
+1. Analyze the response against the criteria above.
+2. Provide your reasoning in 2-3 sentences.
+3. Assign a score from 0.0 to 1.0 where:
+   - 0.0 = completely fails the criteria
+   - 0.5 = partially meets the criteria
+   - 1.0 = fully meets the criteria
+
+Output your evaluation in exactly this format:
+REASONING: <your reasoning>
+SCORE: <0.0-1.0>
