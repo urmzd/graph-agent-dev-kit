@@ -66,13 +66,12 @@ func ragPipeline(ctx context.Context, dsn string) (ragtypes.Pipeline, func()) {
 func newRagSearchCmd(ctx context.Context) *cobra.Command {
 	var db, query, tmplName string
 	var limit int
-	var jsonMode bool
 
 	cmd := &cobra.Command{
 		Use:   "search",
 		Short: "Search documents",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			out := tui.ResolveOutput(jsonMode, tui.TemplateByName(tmplName))
+			out := tui.ResolveOutput(persistentFlagVars.isJSON(), tui.TemplateByName(tmplName))
 			out.Header(tui.OutputHeader{Operation: "rag search"})
 
 			if query == "" {
@@ -100,7 +99,6 @@ func newRagSearchCmd(ctx context.Context) *cobra.Command {
 	cmd.Flags().StringVar(&db, "db", "", "Postgres DSN [$SAIGE_RAG_DB]")
 	cmd.Flags().StringVar(&query, "query", "", "Search query")
 	cmd.Flags().IntVar(&limit, "limit", 10, "Max results")
-	cmd.Flags().BoolVar(&jsonMode, "json", false, "Output as JSON (no styling)")
 	cmd.Flags().StringVar(&tmplName, "template", "default", "Output template (default|minimal|detailed)")
 
 	return cmd
@@ -108,13 +106,12 @@ func newRagSearchCmd(ctx context.Context) *cobra.Command {
 
 func newRagLookupCmd(ctx context.Context) *cobra.Command {
 	var db, uuid, tmplName string
-	var jsonMode bool
 
 	cmd := &cobra.Command{
 		Use:   "lookup",
 		Short: "Get variant by UUID",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			out := tui.ResolveOutput(jsonMode, tui.TemplateByName(tmplName))
+			out := tui.ResolveOutput(persistentFlagVars.isJSON(), tui.TemplateByName(tmplName))
 			out.Header(tui.OutputHeader{Operation: "rag lookup"})
 
 			if uuid == "" {
@@ -141,7 +138,6 @@ func newRagLookupCmd(ctx context.Context) *cobra.Command {
 
 	cmd.Flags().StringVar(&db, "db", "", "Postgres DSN [$SAIGE_RAG_DB]")
 	cmd.Flags().StringVar(&uuid, "uuid", "", "Variant UUID")
-	cmd.Flags().BoolVar(&jsonMode, "json", false, "Output as JSON (no styling)")
 	cmd.Flags().StringVar(&tmplName, "template", "default", "Output template (default|minimal|detailed)")
 
 	return cmd
@@ -149,13 +145,12 @@ func newRagLookupCmd(ctx context.Context) *cobra.Command {
 
 func newRagIngestCmd(ctx context.Context) *cobra.Command {
 	var db, file, mime, source, tmplName string
-	var jsonMode bool
 
 	cmd := &cobra.Command{
 		Use:   "ingest",
 		Short: "Ingest a document",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			out := tui.ResolveOutput(jsonMode, tui.TemplateByName(tmplName))
+			out := tui.ResolveOutput(persistentFlagVars.isJSON(), tui.TemplateByName(tmplName))
 			out.Header(tui.OutputHeader{Operation: "rag ingest"})
 
 			if file == "" {
@@ -199,7 +194,6 @@ func newRagIngestCmd(ctx context.Context) *cobra.Command {
 	cmd.Flags().StringVar(&file, "file", "", "File path to ingest")
 	cmd.Flags().StringVar(&mime, "mime", "text/plain", "MIME type")
 	cmd.Flags().StringVar(&source, "source", "", "Source URI")
-	cmd.Flags().BoolVar(&jsonMode, "json", false, "Output as JSON (no styling)")
 	cmd.Flags().StringVar(&tmplName, "template", "default", "Output template (default|minimal|detailed)")
 
 	return cmd
@@ -207,13 +201,12 @@ func newRagIngestCmd(ctx context.Context) *cobra.Command {
 
 func newRagDeleteCmd(ctx context.Context) *cobra.Command {
 	var db, uuid, tmplName string
-	var jsonMode bool
 
 	cmd := &cobra.Command{
 		Use:   "delete",
 		Short: "Delete a document",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			out := tui.ResolveOutput(jsonMode, tui.TemplateByName(tmplName))
+			out := tui.ResolveOutput(persistentFlagVars.isJSON(), tui.TemplateByName(tmplName))
 			out.Header(tui.OutputHeader{Operation: "rag delete"})
 
 			if uuid == "" {
@@ -236,7 +229,6 @@ func newRagDeleteCmd(ctx context.Context) *cobra.Command {
 
 	cmd.Flags().StringVar(&db, "db", "", "Postgres DSN [$SAIGE_RAG_DB]")
 	cmd.Flags().StringVar(&uuid, "uuid", "", "Document UUID")
-	cmd.Flags().BoolVar(&jsonMode, "json", false, "Output as JSON (no styling)")
 	cmd.Flags().StringVar(&tmplName, "template", "default", "Output template (default|minimal|detailed)")
 
 	return cmd

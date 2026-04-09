@@ -14,7 +14,6 @@ import (
 )
 
 func newAskCmd(ctx context.Context) *cobra.Command {
-	var raw bool
 	var tmplName string
 
 	cmd := &cobra.Command{
@@ -32,7 +31,7 @@ func newAskCmd(ctx context.Context) *cobra.Command {
 				os.Exit(1)
 			}
 
-			out := tui.ResolveOutput(raw, tui.TemplateByName(tmplName))
+			out := tui.ResolveOutput(cf.isJSON(), tui.TemplateByName(tmplName))
 
 			provider, err := resolveProvider(ctx, cf, false)
 			if err != nil {
@@ -69,7 +68,6 @@ func newAskCmd(ctx context.Context) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&raw, "raw", false, "Output raw text only (no styling), useful for pipes")
 	cmd.Flags().StringVar(&tmplName, "template", "default", "Output template (default|minimal|detailed)")
 
 	return cmd

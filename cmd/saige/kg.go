@@ -58,13 +58,12 @@ func kgGraph_(ctx context.Context, dsn string) (kgtypes.Graph, func()) {
 func newKgSearchCmd(ctx context.Context) *cobra.Command {
 	var db, query, tmplName string
 	var limit int
-	var jsonMode bool
 
 	cmd := &cobra.Command{
 		Use:   "search",
 		Short: "Search knowledge graph facts",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			out := tui.ResolveOutput(jsonMode, tui.TemplateByName(tmplName))
+			out := tui.ResolveOutput(persistentFlagVars.isJSON(), tui.TemplateByName(tmplName))
 			out.Header(tui.OutputHeader{Operation: "kg search"})
 
 			if query == "" {
@@ -92,7 +91,6 @@ func newKgSearchCmd(ctx context.Context) *cobra.Command {
 	cmd.Flags().StringVar(&db, "db", "", "Postgres DSN [$SAIGE_KG_DB]")
 	cmd.Flags().StringVar(&query, "query", "", "Search query")
 	cmd.Flags().IntVar(&limit, "limit", 10, "Max results")
-	cmd.Flags().BoolVar(&jsonMode, "json", false, "Output as JSON (no styling)")
 	cmd.Flags().StringVar(&tmplName, "template", "default", "Output template (default|minimal|detailed)")
 
 	return cmd
@@ -100,13 +98,12 @@ func newKgSearchCmd(ctx context.Context) *cobra.Command {
 
 func newKgIngestCmd(ctx context.Context) *cobra.Command {
 	var db, name, text, source, tmplName string
-	var jsonMode bool
 
 	cmd := &cobra.Command{
 		Use:   "ingest",
 		Short: "Ingest text into the graph",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			out := tui.ResolveOutput(jsonMode, tui.TemplateByName(tmplName))
+			out := tui.ResolveOutput(persistentFlagVars.isJSON(), tui.TemplateByName(tmplName))
 			out.Header(tui.OutputHeader{Operation: "kg ingest"})
 
 			if name == "" || text == "" {
@@ -139,7 +136,6 @@ func newKgIngestCmd(ctx context.Context) *cobra.Command {
 	cmd.Flags().StringVar(&name, "name", "", "Episode name")
 	cmd.Flags().StringVar(&text, "text", "", "Text content to ingest")
 	cmd.Flags().StringVar(&source, "source", "", "Source description")
-	cmd.Flags().BoolVar(&jsonMode, "json", false, "Output as JSON (no styling)")
 	cmd.Flags().StringVar(&tmplName, "template", "default", "Output template (default|minimal|detailed)")
 
 	return cmd
@@ -148,13 +144,12 @@ func newKgIngestCmd(ctx context.Context) *cobra.Command {
 func newKgGraphCmd(ctx context.Context) *cobra.Command {
 	var db, tmplName string
 	var limit int
-	var jsonMode bool
 
 	cmd := &cobra.Command{
 		Use:   "graph",
 		Short: "Export full graph data",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			out := tui.ResolveOutput(jsonMode, tui.TemplateByName(tmplName))
+			out := tui.ResolveOutput(persistentFlagVars.isJSON(), tui.TemplateByName(tmplName))
 			out.Header(tui.OutputHeader{Operation: "kg graph"})
 
 			graph, cleanup := kgGraph_(ctx, db)
@@ -176,7 +171,6 @@ func newKgGraphCmd(ctx context.Context) *cobra.Command {
 
 	cmd.Flags().StringVar(&db, "db", "", "Postgres DSN [$SAIGE_KG_DB]")
 	cmd.Flags().IntVar(&limit, "limit", 100, "Max relations to return")
-	cmd.Flags().BoolVar(&jsonMode, "json", false, "Output as JSON (no styling)")
 	cmd.Flags().StringVar(&tmplName, "template", "default", "Output template (default|minimal|detailed)")
 
 	return cmd
@@ -185,13 +179,12 @@ func newKgGraphCmd(ctx context.Context) *cobra.Command {
 func newKgNodeCmd(ctx context.Context) *cobra.Command {
 	var db, id, tmplName string
 	var depth int
-	var jsonMode bool
 
 	cmd := &cobra.Command{
 		Use:   "node",
 		Short: "Explore a node's neighborhood",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			out := tui.ResolveOutput(jsonMode, tui.TemplateByName(tmplName))
+			out := tui.ResolveOutput(persistentFlagVars.isJSON(), tui.TemplateByName(tmplName))
 			out.Header(tui.OutputHeader{Operation: "kg node"})
 
 			if id == "" {
@@ -219,7 +212,6 @@ func newKgNodeCmd(ctx context.Context) *cobra.Command {
 	cmd.Flags().StringVar(&db, "db", "", "Postgres DSN [$SAIGE_KG_DB]")
 	cmd.Flags().StringVar(&id, "id", "", "Entity UUID")
 	cmd.Flags().IntVar(&depth, "depth", 1, "Traversal depth")
-	cmd.Flags().BoolVar(&jsonMode, "json", false, "Output as JSON (no styling)")
 	cmd.Flags().StringVar(&tmplName, "template", "default", "Output template (default|minimal|detailed)")
 
 	return cmd

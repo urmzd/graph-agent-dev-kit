@@ -39,6 +39,7 @@ type commonFlags struct {
 	embedModel *string
 	ragDB      *string
 	kgDB       *string
+	format     *string
 }
 
 // persistentFlagVars holds the package-level vars bound to PersistentFlags on the root command.
@@ -51,6 +52,7 @@ var persistentFlagVars = &commonFlags{
 	embedModel: new(string),
 	ragDB:      new(string),
 	kgDB:       new(string),
+	format:     new(string),
 }
 
 // addPersistentFlags registers provider and connection flags on the root command's PersistentFlags.
@@ -64,6 +66,12 @@ func addPersistentFlags(cmd *cobra.Command) {
 	pf.StringVar(persistentFlagVars.embedModel, "embed-model", "", "Embedding model name (provider-specific default)")
 	pf.StringVar(persistentFlagVars.ragDB, "rag-db", envOr("SAIGE_RAG_DB", ""), "Postgres DSN for RAG tools")
 	pf.StringVar(persistentFlagVars.kgDB, "kg-db", envOr("SAIGE_KG_DB", ""), "Postgres DSN for KG tools")
+	pf.StringVar(persistentFlagVars.format, "format", "human", "Output format: json|human")
+}
+
+// isJSON returns true when the user requested JSON output via --format json.
+func (cf *commonFlags) isJSON() bool {
+	return *cf.format == "json"
 }
 
 // resolvedProvider returns the provider name, falling back to env then auto-detect.

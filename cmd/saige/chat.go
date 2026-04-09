@@ -22,7 +22,7 @@ func newChatCmd(ctx context.Context) *cobra.Command {
 			cf := persistentFlagVars
 
 			tmpl := tui.TemplateByName(tmplName)
-			out := tui.ResolveOutput(false, tmpl)
+			out := tui.ResolveOutput(cf.isJSON(), tmpl)
 
 			provider, err := resolveProvider(ctx, cf, verbose)
 			if err != nil {
