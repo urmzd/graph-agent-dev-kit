@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.10.0 (2026-04-10)
+
+### Features
+
+- **cli**: migrate to Cobra; add update and version subcommands ([8231b4c](https://github.com/urmzd/saige/commit/8231b4c0141b23a82e62e8095e40e7c42a3a2e83))
+
+### Bug Fixes
+
+- resolve golangci-lint errors in update.go and rag.go ([e40d728](https://github.com/urmzd/saige/commit/e40d728ae372c3a7faf29fecd09a45af287d17a0))
+- add missing update.go and fix gitignore matching cmd/saige/ ([fbf3f56](https://github.com/urmzd/saige/commit/fbf3f56482e7e2682408598a346f8daaca381e72))
+
+### Refactoring
+
+- **cmd**: consolidate output format flag to global --format ([cfe16d8](https://github.com/urmzd/saige/commit/cfe16d8b66d8653b81238ed78714800d45d7273b))
+
+[Full Changelog](https://github.com/urmzd/saige/compare/v0.9.0...v0.10.0)
+
+
 ## 0.9.0 (2026-04-09)
 
 ### Features
