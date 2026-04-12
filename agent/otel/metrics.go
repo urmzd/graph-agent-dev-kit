@@ -12,41 +12,43 @@ import (
 
 var _ types.Metrics = (*Metrics)(nil)
 
-// Metrics implements types.Metrics using OpenTelemetry metrics.
+// Metrics implements types.Metrics using OpenTelemetry metrics,
+// following the GenAI semantic conventions.
 type Metrics struct {
-	tokenUsage    metric.Int64Counter
-	toolDuration  metric.Float64Histogram
-	llmDuration   metric.Float64Histogram
-	agentDuration metric.Float64Histogram
+	tokenUsage        metric.Int64Histogram
+	operationDuration metric.Float64Histogram
+	toolDuration      metric.Float64Histogram
+	agentDuration     metric.Float64Histogram
 }
 
 // NewMetrics creates an OTel-backed Metrics implementation.
 func NewMetrics(meter metric.Meter) (*Metrics, error) {
-	tokenUsage, err := meter.Int64Counter("gen_ai.token_usage",
-		metric.WithDescription("Token usage by direction"),
+	tokenUsage, err := meter.Int64Histogram("gen_ai.client.token.usage",
+		metric.WithDescription("Measures number of input and output tokens used"),
+		metric.WithUnit("{token}"),
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	toolDuration, err := meter.Float64Histogram("tool.duration",
-		metric.WithDescription("Tool execution duration in seconds"),
+	operationDuration, err := meter.Float64Histogram("gen_ai.client.operation.duration",
+		metric.WithDescription("GenAI operation duration"),
 		metric.WithUnit("s"),
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	llmDuration, err := meter.Float64Histogram("gen_ai.duration",
-		metric.WithDescription("LLM provider call duration in seconds"),
+	toolDuration, err := meter.Float64Histogram("gen_ai.client.operation.duration",
+		metric.WithDescription("GenAI operation duration"),
 		metric.WithUnit("s"),
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	agentDuration, err := meter.Float64Histogram("agent.duration",
-		metric.WithDescription("Agent invocation duration in seconds"),
+	agentDuration, err := meter.Float64Histogram("gen_ai.client.operation.duration",
+		metric.WithDescription("GenAI operation duration"),
 		metric.WithUnit("s"),
 	)
 	if err != nil {
@@ -54,41 +56,56 @@ func NewMetrics(meter metric.Meter) (*Metrics, error) {
 	}
 
 	return &Metrics{
-		tokenUsage:    tokenUsage,
-		toolDuration:  toolDuration,
-		llmDuration:   llmDuration,
-		agentDuration: agentDuration,
+		tokenUsage:        tokenUsage,
+		operationDuration: operationDuration,
+		toolDuration:      toolDuration,
+		agentDuration:     agentDuration,
 	}, nil
 }
 
-func (m *Metrics) RecordTokenUsage(ctx context.Context, input, output int) {
-	m.tokenUsage.Add(ctx, int64(input), metric.WithAttributes(
-		attribute.String("direction", "input"),
-	))
-	m.tokenUsage.Add(ctx, int64(output), metric.WithAttributes(
-		attribute.String("direction", "output"),
-	))
+func (m *Metrics) RecordTokenUsage(ctx context.Context, operationName, provider string, input, output int) {
+	baseAttrs := []attribute.KeyValue{
+		attribute.String("gen_ai.operation.name", operationName),
+		attribute.String("gen_ai.provider.name", provider),
+	}
+
+	inputAttrs := append([]attribute.KeyValue{
+		attribute.String("gen_ai.token.type", "input"),
+	}, baseAttrs...)
+	m.tokenUsage.Record(ctx, int64(input), metric.WithAttributes(inputAttrs...))
+
+	outputAttrs := append([]attribute.KeyValue{
+		attribute.String("gen_ai.token.type", "output"),
+	}, baseAttrs...)
+	m.tokenUsage.Record(ctx, int64(output), metric.WithAttributes(outputAttrs...))
 }
 
 func (m *Metrics) RecordToolCall(ctx context.Context, toolName string, duration time.Duration, err error) {
 	attrs := []attribute.KeyValue{
-		attribute.String("tool.name", toolName),
-		attribute.Bool("error", err != nil),
+		attribute.String("gen_ai.operation.name", "execute_tool"),
+		attribute.String("gen_ai.tool.name", toolName),
+	}
+	if err != nil {
+		attrs = append(attrs, attribute.String("error.type", errorType(err)))
 	}
 	m.toolDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))
 }
 
-func (m *Metrics) RecordProviderCall(ctx context.Context, provider string, duration time.Duration, err error) {
+func (m *Metrics) RecordProviderCall(ctx context.Context, operationName, provider string, duration time.Duration, err error) {
 	attrs := []attribute.KeyValue{
-		attribute.String("gen_ai.system", provider),
-		attribute.Bool("error", err != nil),
+		attribute.String("gen_ai.operation.name", operationName),
+		attribute.String("gen_ai.provider.name", provider),
 	}
-	m.llmDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))
+	if err != nil {
+		attrs = append(attrs, attribute.String("error.type", errorType(err)))
+	}
+	m.operationDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))
 }
 
 func (m *Metrics) RecordAgentInvocation(ctx context.Context, agentID string, duration time.Duration) {
 	attrs := []attribute.KeyValue{
-		attribute.String("agent.name", agentID),
+		attribute.String("gen_ai.operation.name", "invoke_agent"),
+		attribute.String("gen_ai.agent.name", agentID),
 	}
 	m.agentDuration.Record(ctx, duration.Seconds(), metric.WithAttributes(attrs...))
 }

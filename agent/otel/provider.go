@@ -4,6 +4,8 @@ package otel
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
@@ -29,20 +31,38 @@ func (p *TracedProvider) Name() string {
 	return types.ProviderName(p.Inner)
 }
 
+// Model delegates to the inner provider.
+func (p *TracedProvider) Model() string {
+	return types.ProviderModel(p.Inner)
+}
+
+// spanName builds the OTel GenAI span name: "{operation} {model}".
+func spanName(operation, model string) string {
+	if model == "" {
+		return operation
+	}
+	return fmt.Sprintf("%s %s", operation, model)
+}
+
 // ChatStream starts a span around the provider call and wraps the delta channel.
 func (p *TracedProvider) ChatStream(ctx context.Context, messages []types.Message, tools []types.ToolDef) (<-chan types.Delta, error) {
-	ctx, span := p.tracer.Start(ctx, "llm.chat_stream",
+	model := types.ProviderModel(p.Inner)
+	ctx, span := p.tracer.Start(ctx, spanName("chat", model),
+		trace.WithSpanKind(trace.SpanKindClient),
 		trace.WithAttributes(
-			attribute.String("gen_ai.system", p.Name()),
-			attribute.Int("gen_ai.request.message_count", len(messages)),
-			attribute.Int("gen_ai.request.tool_count", len(tools)),
+			attribute.String("gen_ai.operation.name", "chat"),
+			attribute.String("gen_ai.provider.name", p.Name()),
 		),
 	)
+	if model != "" {
+		span.SetAttributes(attribute.String("gen_ai.request.model", model))
+	}
 
 	ch, err := p.Inner.ChatStream(ctx, messages, tools)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		span.SetAttributes(attribute.String("error.type", errorType(err)))
 		span.End()
 		return nil, err
 	}
@@ -57,18 +77,24 @@ func (p *TracedProvider) ChatStreamWithSchema(ctx context.Context, messages []ty
 		return p.ChatStream(ctx, messages, tools)
 	}
 
-	ctx, span := p.tracer.Start(ctx, "llm.chat_stream_with_schema",
+	model := types.ProviderModel(p.Inner)
+	ctx, span := p.tracer.Start(ctx, spanName("chat", model),
+		trace.WithSpanKind(trace.SpanKindClient),
 		trace.WithAttributes(
-			attribute.String("gen_ai.system", p.Name()),
-			attribute.Int("gen_ai.request.message_count", len(messages)),
-			attribute.Int("gen_ai.request.tool_count", len(tools)),
+			attribute.String("gen_ai.operation.name", "chat"),
+			attribute.String("gen_ai.provider.name", p.Name()),
+			attribute.String("gen_ai.output.type", "json"),
 		),
 	)
+	if model != "" {
+		span.SetAttributes(attribute.String("gen_ai.request.model", model))
+	}
 
 	ch, err := sop.ChatStreamWithSchema(ctx, messages, tools, schema)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		span.SetAttributes(attribute.String("error.type", errorType(err)))
 		span.End()
 		return nil, err
 	}
@@ -92,24 +118,53 @@ func wrapDeltaChannel(in <-chan types.Delta, span trace.Span) <-chan types.Delta
 		defer close(out)
 		defer span.End()
 
+		firstChunk := true
 		start := time.Now()
+
 		for d := range in {
+			if firstChunk {
+				_ = time.Since(start) // time-to-first-chunk available if needed
+				firstChunk = false
+			}
+
 			switch v := d.(type) {
 			case types.UsageDelta:
 				span.SetAttributes(
 					attribute.Int("gen_ai.usage.input_tokens", v.PromptTokens),
 					attribute.Int("gen_ai.usage.output_tokens", v.CompletionTokens),
 				)
+				if v.ResponseModel != "" {
+					span.SetAttributes(attribute.String("gen_ai.response.model", v.ResponseModel))
+				}
+				if v.ResponseID != "" {
+					span.SetAttributes(attribute.String("gen_ai.response.id", v.ResponseID))
+				}
+				if len(v.FinishReasons) > 0 {
+					span.SetAttributes(attribute.StringSlice("gen_ai.response.finish_reasons", v.FinishReasons))
+				}
 			case types.ErrorDelta:
 				span.RecordError(v.Error)
 				span.SetStatus(codes.Error, v.Error.Error())
+				span.SetAttributes(attribute.String("error.type", errorType(v.Error)))
 			case types.DoneDelta:
-				span.SetAttributes(
-					attribute.Int64("gen_ai.response.duration_ms", time.Since(start).Milliseconds()),
-				)
+				// no-op; span ends on channel close
 			}
 			out <- d
 		}
 	}()
 	return out
+}
+
+// errorType extracts a short error type string suitable for the error.type attribute.
+func errorType(err error) string {
+	var pe *types.ProviderError
+	if errors.As(err, &pe) {
+		switch pe.Kind {
+		case types.ErrorKindTransient:
+			return "transient"
+		case types.ErrorKindPermanent:
+			return "permanent"
+		}
+	}
+	return fmt.Sprintf("%T", err)
 }
