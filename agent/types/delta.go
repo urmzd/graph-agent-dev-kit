@@ -151,6 +151,11 @@ type UsageDelta struct {
 	CompletionTokens int
 	TotalTokens      int
 	Latency          time.Duration
+
+	// Response metadata for OpenTelemetry GenAI semantic conventions.
+	ResponseModel  string   // gen_ai.response.model
+	ResponseID     string   // gen_ai.response.id
+	FinishReasons  []string // gen_ai.response.finish_reasons
 }
 
 func (UsageDelta) isDelta() {}

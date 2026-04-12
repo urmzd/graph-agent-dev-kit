@@ -23,6 +23,13 @@ type StructuredOutputProvider interface {
 	ChatStreamWithSchema(ctx context.Context, messages []Message, tools []ToolDef, schema *ParameterSchema) (<-chan Delta, error)
 }
 
+// ModelProvider is an optional interface providers can implement
+// to expose the configured model name for telemetry and logging.
+type ModelProvider interface {
+	Provider
+	Model() string
+}
+
 // Closer is an optional interface providers can implement for graceful shutdown.
 type Closer interface {
 	Close() error
@@ -35,6 +42,15 @@ func ProviderName(p Provider) string {
 		return np.Name()
 	}
 	return "unknown"
+}
+
+// ProviderModel returns the model of a provider if it implements ModelProvider,
+// otherwise returns an empty string.
+func ProviderModel(p Provider) string {
+	if mp, ok := p.(ModelProvider); ok {
+		return mp.Model()
+	}
+	return ""
 }
 
 // CloseProvider closes a provider if it implements Closer, otherwise returns nil.
