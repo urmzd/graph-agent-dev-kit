@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.11.0 (2026-04-12)
+
+### Features
+
+- **provider**: implement ModelProvider across all adapters ([d67c946](https://github.com/urmzd/saige/commit/d67c94650b68e9cba9124b77db1ebd7bd4cdf8f9))
+- **types**: add ModelProvider interface and response metadata ([a10780b](https://github.com/urmzd/saige/commit/a10780baeb99a241612a3be422b2d349af8e9f22))
+
+### Refactoring
+
+- **agent**: update metric calls to pass operation names ([f1335e6](https://github.com/urmzd/saige/commit/f1335e69d9c3f41a67baa721b1fd67077745fc58))
+- **otel**: implement OpenTelemetry GenAI semantic conventions ([110b5a5](https://github.com/urmzd/saige/commit/110b5a5e0a6662fbe62ad74d6fff505e37af4c3f))
+
+### Miscellaneous
+
+- **types**: update metrics tests for interface changes ([a69309f](https://github.com/urmzd/saige/commit/a69309fc223f011b135d4a3ccf40d4b941fb8aa2))
+
+[Full Changelog](https://github.com/urmzd/saige/compare/v0.10.0...v0.11.0)
+
+
 ## 0.10.0 (2026-04-10)
 
 ### Features
