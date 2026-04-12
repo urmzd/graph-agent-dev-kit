@@ -12,10 +12,14 @@ import (
 var (
 	_ types.StructuredOutputProvider = (*Adapter)(nil)
 	_ types.NamedProvider            = (*Adapter)(nil)
+	_ types.ModelProvider            = (*Adapter)(nil)
 )
 
 // Name implements types.NamedProvider.
 func (a *Adapter) Name() string { return "ollama" }
+
+// Model implements types.ModelProvider.
+func (a *Adapter) Model() string { return a.Client.Model }
 
 // Adapter wraps the Ollama Client and implements types.Provider.
 type Adapter struct {
@@ -82,11 +86,18 @@ func (a *Adapter) translateDeltas(rx <-chan ChatChunk) <-chan types.Delta {
 					textStarted = false
 				}
 				// Emit usage delta from the final chunk.
-				out <- types.UsageDelta{
+				ud := types.UsageDelta{
 					PromptTokens:     chunk.PromptEvalCount,
 					CompletionTokens: chunk.EvalCount,
 					TotalTokens:      chunk.PromptEvalCount + chunk.EvalCount,
+					ResponseModel:    chunk.Model,
 				}
+				if chunk.DoneReason != "" {
+					ud.FinishReasons = []string{chunk.DoneReason}
+				} else {
+					ud.FinishReasons = []string{"stop"}
+				}
+				out <- ud
 				continue
 			}
 

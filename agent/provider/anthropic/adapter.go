@@ -16,6 +16,7 @@ import (
 var (
 	_ types.StructuredOutputProvider = (*Adapter)(nil)
 	_ types.NamedProvider            = (*Adapter)(nil)
+	_ types.ModelProvider            = (*Adapter)(nil)
 )
 
 // Adapter wraps the official Anthropic SDK client and implements types.Provider,
@@ -57,6 +58,9 @@ func NewAdapter(apiKey, model string, opts ...Option) *Adapter {
 
 // Name implements types.NamedProvider.
 func (a *Adapter) Name() string { return "anthropic" }
+
+// Model implements types.ModelProvider.
+func (a *Adapter) Model() string { return string(a.model) }
 
 // ChatStream implements types.Provider.
 func (a *Adapter) ChatStream(ctx context.Context, messages []types.Message, tools []types.ToolDef) (<-chan types.Delta, error) {
@@ -140,15 +144,24 @@ func (a *Adapter) consumeStream(stream *ssestream.Stream[anthropic.MessageStream
 		var toolArgsBuf []byte
 		var signatureBuf string
 
+		// Track response metadata for the final UsageDelta.
+		var responseID string
+		var responseModel string
+		var finishReason string
+
 		for stream.Next() {
 			evt := stream.Current()
 
 			switch evt.Type {
 			case "message_start":
+				responseID = evt.Message.ID
+				responseModel = string(evt.Message.Model)
 				if evt.Message.Usage.InputTokens > 0 {
 					out <- types.UsageDelta{
-						PromptTokens: int(evt.Message.Usage.InputTokens),
-						TotalTokens:  int(evt.Message.Usage.InputTokens + evt.Message.Usage.OutputTokens),
+						PromptTokens:  int(evt.Message.Usage.InputTokens),
+						TotalTokens:   int(evt.Message.Usage.InputTokens + evt.Message.Usage.OutputTokens),
+						ResponseID:    evt.Message.ID,
+						ResponseModel: string(evt.Message.Model),
 					}
 				}
 
@@ -211,11 +224,20 @@ func (a *Adapter) consumeStream(stream *ssestream.Stream[anthropic.MessageStream
 				currentBlockName = ""
 
 			case "message_delta":
+				if string(evt.Delta.StopReason) != "" {
+					finishReason = string(evt.Delta.StopReason)
+				}
 				if evt.Usage.OutputTokens > 0 {
-					out <- types.UsageDelta{
+					ud := types.UsageDelta{
 						CompletionTokens: int(evt.Usage.OutputTokens),
 						TotalTokens:      int(evt.Usage.OutputTokens),
+						ResponseID:       responseID,
+						ResponseModel:    responseModel,
 					}
+					if finishReason != "" {
+						ud.FinishReasons = []string{finishReason}
+					}
+					out <- ud
 				}
 			}
 		}

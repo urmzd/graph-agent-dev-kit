@@ -18,6 +18,7 @@ import (
 var (
 	_ types.StructuredOutputProvider = (*Adapter)(nil)
 	_ types.NamedProvider            = (*Adapter)(nil)
+	_ types.ModelProvider            = (*Adapter)(nil)
 )
 
 // Option configures the OpenAI adapter.
@@ -57,6 +58,9 @@ func NewAdapter(apiKey, model string, opts ...Option) *Adapter {
 
 // Name implements types.NamedProvider.
 func (a *Adapter) Name() string { return "openai" }
+
+// Model implements types.ModelProvider.
+func (a *Adapter) Model() string { return string(a.model) }
 
 // ChatStream implements types.Provider.
 func (a *Adapter) ChatStream(ctx context.Context, messages []types.Message, tools []types.ToolDef) (<-chan types.Delta, error) {
@@ -121,16 +125,33 @@ func (a *Adapter) chatStream(ctx context.Context, messages []types.Message, tool
 		textStarted := false
 		startedToolCalls := make(map[int64]bool)
 
+		var responseID string
+		var responseModel string
+		var finishReason string
+
 		for stream.Next() {
 			chunk := stream.Current()
 			acc.AddChunk(chunk)
 
+			if chunk.ID != "" {
+				responseID = chunk.ID
+			}
+			if chunk.Model != "" {
+				responseModel = chunk.Model
+			}
+
 			if chunk.Usage.TotalTokens > 0 {
-				out <- types.UsageDelta{
+				ud := types.UsageDelta{
 					PromptTokens:     int(chunk.Usage.PromptTokens),
 					CompletionTokens: int(chunk.Usage.CompletionTokens),
 					TotalTokens:      int(chunk.Usage.TotalTokens),
+					ResponseID:       responseID,
+					ResponseModel:    responseModel,
 				}
+				if finishReason != "" {
+					ud.FinishReasons = []string{finishReason}
+				}
+				out <- ud
 			}
 
 			if len(chunk.Choices) == 0 {
@@ -138,6 +159,9 @@ func (a *Adapter) chatStream(ctx context.Context, messages []types.Message, tool
 			}
 
 			choice := chunk.Choices[0]
+			if string(choice.FinishReason) != "" {
+				finishReason = string(choice.FinishReason)
+			}
 			delta := choice.Delta
 
 			if delta.Content != "" {

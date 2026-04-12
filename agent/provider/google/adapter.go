@@ -11,6 +11,7 @@ import (
 var (
 	_ types.StructuredOutputProvider = (*Adapter)(nil)
 	_ types.NamedProvider            = (*Adapter)(nil)
+	_ types.ModelProvider            = (*Adapter)(nil)
 )
 
 // Adapter wraps the official Google GenAI SDK client and implements types.Provider,
@@ -34,6 +35,9 @@ func NewAdapter(ctx context.Context, apiKey, model string) (*Adapter, error) {
 
 // Name implements types.NamedProvider.
 func (a *Adapter) Name() string { return "google" }
+
+// Model implements types.ModelProvider.
+func (a *Adapter) Model() string { return a.model }
 
 // ChatStream implements types.Provider.
 func (a *Adapter) ChatStream(ctx context.Context, messages []types.Message, tools []types.ToolDef) (<-chan types.Delta, error) {
@@ -108,11 +112,17 @@ func (a *Adapter) chatStream(ctx context.Context, contents []*genai.Content, con
 
 			// Emit usage.
 			if resp.UsageMetadata != nil {
-				out <- types.UsageDelta{
+				ud := types.UsageDelta{
 					PromptTokens:     int(resp.UsageMetadata.PromptTokenCount),
 					CompletionTokens: int(resp.UsageMetadata.CandidatesTokenCount),
 					TotalTokens:      int(resp.UsageMetadata.TotalTokenCount),
+					ResponseModel:    resp.ModelVersion,
+					ResponseID:       resp.ResponseID,
 				}
+				if len(resp.Candidates) > 0 && string(resp.Candidates[0].FinishReason) != "" {
+					ud.FinishReasons = []string{string(resp.Candidates[0].FinishReason)}
+				}
+				out <- ud
 			}
 		}
 	}()

@@ -54,8 +54,10 @@ type ChatRequest struct {
 }
 
 type ChatChunk struct {
+	Model              string      `json:"model,omitempty"`
 	Message            ChatMessage `json:"message"`
 	Done               bool        `json:"done"`
+	DoneReason         string      `json:"done_reason,omitempty"`
 	PromptEvalCount    int         `json:"prompt_eval_count,omitempty"`
 	EvalCount          int         `json:"eval_count,omitempty"`
 	TotalDuration      int64       `json:"total_duration,omitempty"`
