@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.11.2 (2026-04-19)
+
+### Bug Fixes
+
+- **ci**: drop removed sr action force input ([178da89](https://github.com/urmzd/saige/commit/178da896b36ea86ed1eff9ff6cb85792ecfb4f7e))
+
+[Full Changelog](https://github.com/urmzd/saige/compare/v0.11.1...v0.11.2)
+
+
 ## 0.11.1 (2026-04-16)
 
 ### Bug Fixes
