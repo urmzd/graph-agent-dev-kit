@@ -44,7 +44,6 @@ jobs:
         id: sr
         with:
           github-token: ${{ steps.app-token.outputs.token }}
-          force: ${{ inputs.force }}
 
     outputs:
       released: ${{ steps.sr.outputs.released }}
